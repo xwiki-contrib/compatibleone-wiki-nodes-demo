@@ -135,7 +135,7 @@ downloadAndBuild()
 
 downloadAndBuild Datanucleus-Cassandra-Plugin git://github.com/xwiki-contrib/Datanucleus-Cassandra-Plugin.git master .
 downloadAndBuild xwiki-platform git://github.com/xwiki/xwiki-platform.git feature-store-attachments-newstore xwiki-platform-core/xwiki-platform-store
-downloadAndBuild xwiki-store-datanucleus git://github.com/xwiki-contrib/xwiki-store-datanucleus.git master .
+downloadAndBuild xwiki-store-datanucleus git://github.com/xwiki-contrib/xwiki-store-datanucleus.git master xwiki-platform-store-datanucleus
 downloadAndBuild xwiki-enterprise git://github.com/cjdelisle/xwiki-enterprise.git wiki-nodes .
 
 mkdir $workingDir/node
