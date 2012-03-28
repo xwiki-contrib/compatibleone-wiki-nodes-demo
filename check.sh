@@ -50,7 +50,8 @@ if [ ! -e "${MAVEN_VER}" ]; then
     echo "downloading: $closestMaven"
     wget $closestMaven
     tar xf "${MAVEN_VER}-bin.tar.gz"
-    mkdir $workingDir/.m2
+    cd
+    mkdir .m2
     echo '
 <settings>
  <profiles>
@@ -110,7 +111,7 @@ if [ ! -e "${MAVEN_VER}" ]; then
    <activeProfile>xwiki</activeProfile>
  </activeProfiles>
 </settings>
-' > $workingDir/.m2/settings.xml
+' > .m2/settings.xml
 fi
 export PATH="$PATH:$workingDir/${MAVEN_VER}/bin"
 
