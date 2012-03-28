@@ -1,5 +1,7 @@
 #!/bin/bash
 
+MAVEN_VER="apache-maven-3.0.4"
+
 workingDir="`pwd`"
 
 needRoot()
@@ -33,10 +35,23 @@ require()
 
 require java default-jdk
 require git git
-require mvn maven
+require wget wget
 require unzip unzip
 
 needNonRoot
+
+cd $workingDir
+if [ ! -e "${MAVEN_VER}" ]; then
+    closestMaven="`\
+        wget -qO - http://www.apache.org/dyn/closer.cgi/maven/binaries/${MAVEN_VER}-bin.tar.gz \
+        | grep ${MAVEN_VER}-bin.tar.gz | head -n 1 | sed 's/.*"\([^"]*\)".*/\1/' \
+    `"
+
+    echo "downloading: $closestMaven"
+    wget $closestMaven
+    tar xf "${MAVEN_VER}-bin.tar.gz"
+fi
+export PATH="$PATH:$workingDir/${MAVEN_VER}/bin"
 
 downloadAndBuild()
 {
