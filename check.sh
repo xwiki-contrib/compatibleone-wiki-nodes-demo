@@ -50,6 +50,67 @@ if [ ! -e "${MAVEN_VER}" ]; then
     echo "downloading: $closestMaven"
     wget $closestMaven
     tar xf "${MAVEN_VER}-bin.tar.gz"
+    mkdir $workingDir/.m2
+    echo '
+<settings>
+ <profiles>
+   <profile>
+     <id>xwiki</id>
+     <repositories>
+       <repository>
+         <id>xwiki-releases</id>
+         <name>XWiki Nexus Releases Repository Proxy</name>
+         <url>http://nexus.xwiki.org/nexus/content/groups/public</url>
+         <releases>
+           <enabled>true</enabled>
+         </releases>
+         <snapshots>
+           <enabled>false</enabled>
+         </snapshots>
+       </repository>
+       <repository>
+         <id>xwiki-snapshots</id>
+         <name>XWiki Nexus Snapshot Repository Proxy</name>
+         <url>http://nexus.xwiki.org/nexus/content/groups/public-snapshots</url>
+         <releases>
+           <enabled>false</enabled>
+         </releases>
+         <snapshots>
+           <enabled>true</enabled>
+         </snapshots>
+       </repository>
+     </repositories>
+     <pluginRepositories>
+       <pluginRepository>
+         <id>xwiki-plugins-releases</id>
+         <name>XWiki Nexus Plugin Releases Repository Proxy</name>
+         <url>http://nexus.xwiki.org/nexus/content/groups/public</url>
+         <releases>
+           <enabled>true</enabled>
+         </releases>
+         <snapshots>
+           <enabled>false</enabled>
+         </snapshots>
+       </pluginRepository>
+       <pluginRepository>
+         <id>xwiki-plugins-snapshots</id>
+         <name>XWiki Nexus Plugin Snapshot Repository Proxy</name>
+         <url>http://nexus.xwiki.org/nexus/content/groups/public-snapshots</url>
+         <releases>
+           <enabled>false</enabled>
+         </releases>
+         <snapshots>
+           <enabled>true</enabled>
+         </snapshots>
+       </pluginRepository>
+     </pluginRepositories>
+   </profile>
+ </profiles>
+ <activeProfiles>
+   <activeProfile>xwiki</activeProfile>
+ </activeProfiles>
+</settings>
+' > $workingDir/.m2/settings.xml
 fi
 export PATH="$PATH:$workingDir/${MAVEN_VER}/bin"
 
