@@ -6,6 +6,15 @@ needRoot()
 {
     if [ "`id -u`" != "0" ]; then
         echo "Needs to be run as root."
+        exit
+    fi
+}
+
+needNonRoot()
+{
+    if [ "`id -u`" == "0" ]; then
+        echo "Now run as non-root."
+        exit
     fi
 }
 
@@ -26,6 +35,8 @@ require java default-jdk
 require git git
 require mvn maven
 require unzip unzip
+
+needNonRoot
 
 downloadAndBuild()
 {
