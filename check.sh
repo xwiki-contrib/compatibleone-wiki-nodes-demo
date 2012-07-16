@@ -40,8 +40,9 @@ require unzip unzip
 
 needNonRoot
 
-cd $workingDir
-if [ ! -e "${MAVEN_VER}" ]; then
+[ -e $workingDir/build ] || mkdir $workingDir/build;
+cd $workingDir/build
+if [[ ! -e "${MAVEN_VER}" && "`which mvn`" == "" ]]; then
     closestMaven="`\
         wget -qO - http://www.apache.org/dyn/closer.cgi/maven/binaries/${MAVEN_VER}-bin.tar.gz \
         | grep ${MAVEN_VER}-bin.tar.gz | head -n 1 | sed 's/.*"\([^"]*\)".*/\1/' \
@@ -52,7 +53,7 @@ if [ ! -e "${MAVEN_VER}" ]; then
     tar xf "${MAVEN_VER}-bin.tar.gz"
     cd
     mkdir .m2
-    echo '
+    [ -e .m2/settings.xml ] || echo '
 <settings>
  <profiles>
    <profile>
@@ -117,7 +118,7 @@ export PATH="$PATH:$workingDir/${MAVEN_VER}/bin"
 
 downloadAndBuild()
 {
-    cd $workingDir
+    cd $workingDir/build
     if [ ! -e "$1" ]; then
         git clone $2 $1 || exit 1
         cd $1
@@ -138,8 +139,11 @@ downloadAndBuild xwiki-platform git://github.com/xwiki/xwiki-platform.git featur
 downloadAndBuild xwiki-store-datanucleus git://github.com/xwiki-contrib/xwiki-store-datanucleus.git master xwiki-platform-store-datanucleus
 downloadAndBuild xwiki-enterprise git://github.com/cjdelisle/xwiki-enterprise.git wiki-nodes .
 
-mkdir $workingDir/node
-mv `find ./ -name 'xwiki-enterprise-jetty-datanucleus-?.?-SNAPSHOT.zip'` $workingDir/node/xwiki-cassandra.zip
-cd $workingDir/node
-unzip xwiki-cassandra.zip
+cd $workingDir;
+rm ./xwiki-enterprise-jetty-datanucleus-* -r;
+mv `find $workingDir -name 'xwiki-enterprise-jetty-datanucleus-?.?-SNAPSHOT.zip'` $workingDir
+unzip *.zip;
 
+cp templates/start_xwiki.sh ./xwiki-enterprise-jetty-datanucleus-*/
+cp templates/cassandra.yaml.vm ./xwiki-enterprise-jetty-datanucleus-*/webapps/xwiki/WEB-INF/classes/
+rm ./xwiki-enterprise-jetty-datanucleus-*.zip;
