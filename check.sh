@@ -147,3 +147,8 @@ unzip *.zip;
 cp templates/start_xwiki.sh ./xwiki-enterprise-jetty-datanucleus-*/
 cp templates/cassandra.yaml.vm ./xwiki-enterprise-jetty-datanucleus-*/webapps/xwiki/WEB-INF/classes/
 rm ./xwiki-enterprise-jetty-datanucleus-*.zip;
+echo '
+# enable jgroups
+observation.remote.channels=tcp
+observation.remote.enabled=true
+' >> ./xwiki-enterprise-jetty-datanucleus-*/webapps/xwiki/WEB-INF/xwiki.properties
