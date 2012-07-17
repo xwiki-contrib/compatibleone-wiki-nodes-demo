@@ -114,7 +114,7 @@ if [[ ! -e "${MAVEN_VER}" && "`which mvn`" == "" ]]; then
 </settings>
 ' > .m2/settings.xml
 fi
-export PATH="$PATH:$workingDir/${MAVEN_VER}/bin"
+export PATH="$PATH:$workingDir/build/${MAVEN_VER}/bin"
 
 downloadAndBuild()
 {
