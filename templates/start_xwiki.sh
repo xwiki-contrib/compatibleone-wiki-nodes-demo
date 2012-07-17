@@ -95,17 +95,23 @@ XWIKI_OPTS="$XWIKI_OPTS -Dfile.encoding=UTF8"
 # service attacks.
 XWIKI_OPTS="$XWIKI_OPTS -Dorg.eclipse.jetty.server.Request.maxFormContentSize=1000000"
 
+getInterface()
+{
+    ret=`/sbin/ip route get $1 | head -1 | sed 's/.* \([0-9\.]*\)\s/\1/'`
+}
 
 if [[ "${CONNECT_TO}" == "" ]]; then
   if [[ "${BIND_TO}" == "" ]]; then
     # Bind to the interface which gives you internet if left empty.
-    BIND_TO=`/sbin/ip route get 4.2.2.1 | head -1 | awk '{print $7}'`
+    getInterface '4.2.2.1'
+    BIND_TO=${ret}
   fi
   CONNECT_TO=${BIND_TO}
 else
   if [[ "${BIND_TO}" == "" ]]; then
     # bind to the interface which gets you to CONNECT_TO.
-    BIND_TO=`/sbin/ip route get ${CONNECT_TO} | head -1 | awk '{print $7}'`
+    getInterface "${CONNECT_TO}"
+    BIND_TO=${ret}
   fi
 fi
 if [[ "${ANNOUNCE_ADDR}" == "" ]]; then
