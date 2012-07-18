@@ -118,7 +118,7 @@ if [[ "${ANNOUNCE_ADDR}" == "" ]]; then
   ANNOUNCE_ADDR=${BIND_TO}
 fi
 
-XWIKI_OPTS="$XWIKI_OPTS -Djgroups.bind_address=${BIND_TO}"
+XWIKI_OPTS="$XWIKI_OPTS -Djgroups.bind_addr=${BIND_TO}"
 XWIKI_OPTS="$XWIKI_OPTS -Djgroups.tcpping.initial_hosts=${CONNECT_TO}[7800]"
 XWIKI_OPTS="$XWIKI_OPTS -Dcassandra-jdo.replication_factor=2"
 CASSANDRA_CONF="./webapps/xwiki/WEB-INF/classes/cassandra.yaml"
