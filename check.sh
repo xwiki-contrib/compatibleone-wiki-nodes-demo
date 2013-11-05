@@ -116,7 +116,7 @@ if [[ ! -e "${MAVEN_VER}" && "`which mvn`" == "" ]]; then
 fi
 export PATH="$PATH:$workingDir/build/${MAVEN_VER}/bin"
 
-downloadAndBuild()
+download()
 {
     cd $workingDir/build
     if [ ! -e "$1" ]; then
@@ -124,19 +124,24 @@ downloadAndBuild()
         cd $1
         git checkout $3 || exit 1
         cd $4
-        mvn clean install
     else
         cd $1
         git pull || exit 1
         git checkout $3 || exit 1
         cd $4
-        mvn clean install
     fi
 }
 
+downloadAndBuild()
+{
+    download $1 $2 $3 $4
+    mvn clean install
+}
+
 downloadAndBuild Datanucleus-Cassandra-Plugin git://github.com/xwiki-contrib/Datanucleus-Cassandra-Plugin.git master .
-downloadAndBuild xwiki-newstore git://github.com/cjdelisle/xwiki-newstore.git master .
-downloadAndBuild xwiki-enterprise git://github.com/cjdelisle/xwiki-enterprise.git wiki-nodes .
+downloadAndBuild xwiki-newstore git://github.com/xwiki-contrib/compatibleone-xwiki-newstore.git master .
+download xwiki-enterprise git://github.com/xwiki/xwiki-enterprise.git xwiki-enterprise-4.2-milestone-1 .
+git apply < $workingDir/xwiki-enterprise-4.2-milestone-1-wiki-nodes.patch
 
 cd $workingDir;
 rm ./xwiki-enterprise-jetty-datanucleus-* -r;

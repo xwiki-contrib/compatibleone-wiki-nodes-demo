@@ -1,0 +1,135 @@
+#!/bin/bash
+# ---------------------------------------------------------------------------
+# See the NOTICE file distributed with this work for additional
+# information regarding copyright ownership.
+#
+# This is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as
+# published by the Free Software Foundation; either version 2.1 of
+# the License, or (at your option) any later version.
+#
+# This software is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this software; if not, write to the Free
+# Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+# 02110-1301 USA, or see the FSF site: http://www.fsf.org.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Optional ENV vars
+# -----------------
+#   XWIKI_OPTS - parameters passed to the Java VM when running XWiki
+#     e.g. to increase the memory allocated to the JVM to 1GB, use
+#       set XWIKI_OPTS=-Xmx1024m
+# ---------------------------------------------------------------------------
+
+# Ensure that the commands below are always started in the directory where this script is
+# located. To do this we compute the location of the current script.
+PRG="$0"
+while [ -h "$PRG" ]; do
+  ls=`ls -ld "$PRG"`
+  link=`expr "$ls" : '.*-> \(.*\)$'`
+  if expr "$link" : '/.*' > /dev/null; then
+    PRG="$link"
+  else
+    PRG=`dirname "$PRG"`/"$link"
+  fi
+done
+PRGDIR=`dirname "$PRG"`
+cd "$PRGDIR"
+
+JETTY_HOME=jetty
+
+# If no XWIKI_OPTS env variable has been defined use default values.
+if [ -z "$XWIKI_OPTS" ] ; then
+  XWIKI_OPTS="-Xmx512m -XX:MaxPermSize=128m"
+fi
+
+# The port on which to start Jetty can be passed to this script as the first argument
+if [ -n "$1" ]; then
+  JETTY_PORT=$1
+else
+  JETTY_PORT=8080
+fi
+
+# The port on which to stop Jetty can be passed to this script as the second argument
+if [ -n "$2" ]; then
+  JETTY_STOPPORT=$2
+else
+  JETTY_STOPPORT=8079
+fi
+
+echo Starting Jetty on port $JETTY_PORT ...
+echo Logs are in the $PRGDIR/xwiki.log file
+
+# Ensure the logs directory exists as otherwise Jetty reports an error
+mkdir -p $JETTY_HOME/logs 2>/dev/null
+
+# Ensure the work directory exists so that Jetty uses it for its temporary files.
+mkdir -p $JETTY_HOME/work 2>/dev/null
+
+# Ensure the data directory exists so that XWiki can use it for storing permanent data
+mkdir -p data 2>/dev/null
+
+# Specify port on which HTTP requests will be handled
+XWIKI_OPTS="$XWIKI_OPTS -Djetty.port=$JETTY_PORT"
+
+# Specify Jetty's home directory
+XWIKI_OPTS="$XWIKI_OPTS -Djetty.home=$JETTY_HOME"
+
+# Specify port and key to stop a running Jetty instance
+XWIKI_OPTS="$XWIKI_OPTS -DSTOP.KEY=xwiki -DSTOP.PORT=$JETTY_STOPPORT"
+
+# Specify the encoding to use
+XWIKI_OPTS="$XWIKI_OPTS -Dfile.encoding=UTF8"
+
+# In order to avoid getting a "java.lang.IllegalStateException: Form too large" error
+# when editing large page in XWiki we need to tell Jetty to allow for large content
+# since by default it only allows for 20K. We do this by passing the
+# org.eclipse.jetty.server.Request.maxFormContentSize property.
+# Note that setting this value too high can leave your server vulnerable to denial of
+# service attacks.
+XWIKI_OPTS="$XWIKI_OPTS -Dorg.eclipse.jetty.server.Request.maxFormContentSize=1000000"
+
+getInterface()
+{
+    ret=`/sbin/ip route get $1 | head -1 | sed 's/.* \([0-9\.]*\)\s/\1/'`
+}
+
+if [[ "${CONNECT_TO}" == "" ]]; then
+  if [[ "${BIND_TO}" == "" ]]; then
+    # Bind to the interface which gives you internet if left empty.
+    getInterface '4.2.2.1'
+    BIND_TO=${ret}
+  fi
+  CONNECT_TO=${BIND_TO}
+else
+  if [[ "${BIND_TO}" == "" ]]; then
+    # bind to the interface which gets you to CONNECT_TO.
+    getInterface "${CONNECT_TO}"
+    BIND_TO=${ret}
+  fi
+fi
+if [[ "${ANNOUNCE_ADDR}" == "" ]]; then
+  ANNOUNCE_ADDR=${BIND_TO}
+fi
+
+XWIKI_OPTS="$XWIKI_OPTS -Djgroups.bind_addr=${BIND_TO}"
+XWIKI_OPTS="$XWIKI_OPTS -Djgroups.tcpping.initial_hosts=${CONNECT_TO}[7800]"
+XWIKI_OPTS="$XWIKI_OPTS -Dcassandra-jdo.replication_factor=2"
+CASSANDRA_CONF="./webapps/xwiki/WEB-INF/classes/cassandra.yaml"
+sed "s/\${BIND_TO}/${BIND_TO}/" < "${CASSANDRA_CONF}.vm" > ${CASSANDRA_CONF}
+sed -i "s/\${ANNOUNCE_ADDR}/${ANNOUNCE_ADDR}/" ${CASSANDRA_CONF}
+sed -i "s/\${CONNECT_TO}/${CONNECT_TO}/" ${CASSANDRA_CONF}
+
+# Create a lock file to signify that XWiki is running
+touch xwiki.lck
+
+java $XWIKI_OPTS $3 $4 $5 $6 $7 $8 $9 -jar $JETTY_HOME/start.jar
+
+# Remove XWiki lock file
+rm -f xwiki.lck

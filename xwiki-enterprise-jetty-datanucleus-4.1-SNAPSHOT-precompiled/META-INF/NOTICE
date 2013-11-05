@@ -1,0 +1,28 @@
+// ------------------------------------------------------------------
+// NOTICE file containing copyrights,
+// in this case for XWiki Enterprise - Distribution - Jetty - DataNucleus
+// ------------------------------------------------------------------
+
+XWiki Enterprise - Distribution - Jetty - DataNucleus
+Copyright 2004-2012 XWiki
+
+This product includes/uses software developed by 'Mort Bay Consulting' (http://www.mortbay.com)
+  - Jetty :: Continuation (http://www.eclipse.org/jetty/jetty-continuation)
+  - Jetty :: Deployers (http://www.eclipse.org/jetty/jetty-deploy)
+  - Jetty :: Http Utility (http://www.eclipse.org/jetty/jetty-http)
+  - Jetty :: IO Utility (http://www.eclipse.org/jetty/jetty-io)
+  - Jetty :: Security (http://www.eclipse.org/jetty/jetty-security)
+  - Jetty :: Server Core (http://www.eclipse.org/jetty)
+  - Jetty :: Servlet Handling (http://www.eclipse.org/jetty/jetty-servlet)
+  - Jetty :: Start (http://www.eclipse.org/jetty/jetty-start)
+  - Jetty :: Utilities (http://www.eclipse.org/jetty/jetty-util)
+  - Jetty :: Webapp Application Support (http://www.eclipse.org/jetty/jetty-webapp)
+  - Jetty :: XML utilities (http://www.eclipse.org/jetty/jetty-xml)
+
+This product includes/uses software developed by 'XWiki' (http://xwiki.org/)
+  - XWiki Enterprise - Web (http://extensions.xwiki.org?id=org.xwiki.enterprise:xwiki-enterprise-web:::/xwiki-commons-pom/xwiki-enterprise/xwiki-enterprise-web)
+  - XWiki Platform - Tools - Jetty Lifecycle Listener (http://extensions.xwiki.org?id=org.xwiki.platform:xwiki-platform-tool-jetty-listener:::/xwiki-commons-pom/xwiki-platform/xwiki-platform-tools/xwiki-platform-tool-jetty-listener)
+  - XWiki Platform - Tools - Jetty Configuration Resources (http://extensions.xwiki.org?id=org.xwiki.platform:xwiki-platform-tool-jetty-resources:::/xwiki-commons-pom/xwiki-platform/xwiki-platform-tools/xwiki-platform-tool-jetty-resources)
+  - XWiki Platform - Tools - Root Webapp (http://extensions.xwiki.org?id=org.xwiki.platform:xwiki-platform-tool-rootwebapp:::/xwiki-commons-pom/xwiki-platform/xwiki-platform-tools/xwiki-platform-tool-rootwebapp)
+
+

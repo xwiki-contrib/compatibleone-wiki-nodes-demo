@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<bindings xmlns="http://www.mozilla.org/xbl" xmlns:html="http://www.w3.org/1999/xhtml">
+<binding id="ellipsis" applyauthorstyles="false">
+	<implementation>
+		<constructor>
+			//<![CDATA[
+			if (this.parentNode.className == 'moz-ellipsis-container') {
+				return;
+			}
+			
+			var ellipsis = document.createElement('div');
+			ellipsis.appendChild(document.createTextNode('\u2026'));
+			ellipsis.className = 'moz-ellipsis';
+			
+			var findQm = function(root) {
+				var qm = null;
+				var child = root.lastChild;
+				while(!qm && child && child.className != 'wikicreatelinkqm') {
+					qm = findQm(child);
+					child = child.previousSibling;
+				}
+				if (!qm && child) {
+					qm = child;
+				}
+				return qm;
+			}
+			
+			var qm = findQm(this);
+			if (qm) {
+			  ellipsis.appendChild(qm);
+			}
+
+			var self = this;
+			var title = self.title;
+			if (title == null || title == '') {
+				title = self.textContent;
+			}
+			self.title = '';
+
+			var container = document.createElement('div');
+			container.className = 'moz-ellipsis-container';
+			self.parentNode.replaceChild(container, self);
+			container.appendChild(self);
+			container.appendChild(ellipsis);
+
+			self.addEventListener('overflow',
+				function() {
+					ellipsis.style.visibility = 'visible';
+					self.title = title;
+					self.parentNode.style.paddingRight = ellipsis.offsetWidth + 'px';
+				}, false);
+
+			self.addEventListener('underflow',
+				function() {
+					ellipsis.style.visibility = 'hidden';
+					self.title = '';
+				}, false);
+			//]]>
+		</constructor>
+	</implementation>
+</binding>
+</bindings>
+

@@ -1,0 +1,2924 @@
+diff --git a/pom.xml b/pom.xml
+index 48020e0..9e66af1 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -27,11 +27,11 @@
+   <parent>
+     <groupId>org.xwiki.commons</groupId>
+     <artifactId>xwiki-commons-pom</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <groupId>org.xwiki.enterprise</groupId>
+   <artifactId>xwiki-enterprise</artifactId>
+-  <version>4.2-milestone-1</version>
++  <version>4.2-SNAPSHOT</version>
+   <packaging>pom</packaging>
+   <name>XWiki Enterprise - Parent POM</name>
+   <description>XWiki Enterprise - Parent POM</description>
+@@ -39,7 +39,6 @@
+     <connection>scm:git:git://github.com/xwiki/xwiki-enterprise.git</connection>
+     <developerConnection>scm:git:git@github.com:xwiki/xwiki-enterprise.git</developerConnection>
+     <url>http://github.com/xwiki/xwiki-enterprise</url>
+-    <tag>xwiki-enterprise-4.2-milestone-1</tag>
+   </scm>
+   <issueManagement>
+     <system>jira</system>
+@@ -49,7 +48,7 @@
+     <!-- Sorted Alphabetically -->
+     <module>xwiki-enterprise-database</module>
+     <module>xwiki-enterprise-distribution</module>
+-    <module>xwiki-enterprise-installers</module>
++    <!--<module>xwiki-enterprise-installers</module> These install the HSQL version -->
+     <module>xwiki-enterprise-ui</module>
+     <module>xwiki-enterprise-web</module>
+   </modules>
+@@ -94,7 +93,9 @@
+   com.xpn.xwiki.plugin.jodatime.JodaTimePlugin,\
+   com.xpn.xwiki.plugin.scheduler.SchedulerPlugin,\
+   com.xpn.xwiki.plugin.mailsender.MailSenderPlugin,\
+-  com.xpn.xwiki.plugin.activitystream.plugin.ActivityStreamPlugin, \
++  <!-- The activity stream demands hibernate based storage
++       which floods the logs with null pointer exceptions because it's not there.
++  com.xpn.xwiki.plugin.activitystream.plugin.ActivityStreamPlugin, \-->
+   com.xpn.xwiki.plugin.watchlist.WatchListPlugin, \
+   com.xpn.xwiki.plugin.tag.TagPlugin
+     </xe.xwiki.cfg.plugins>
+@@ -104,7 +105,7 @@
+     <xwiki.cfg.defaultbaseskin>colibri</xwiki.cfg.defaultbaseskin>
+     <xwiki.cfg.encoding>UTF-8</xwiki.cfg.encoding>
+     <xwiki.cfg.editcomment.mandatory>0</xwiki.cfg.editcomment.mandatory>
+-    <xwiki.cfg.additionalproperties />
++    <xwiki.cfg.additionalproperties></xwiki.cfg.additionalproperties>
+     <!-- Default location for XWiki's Data directory -->
+     <xwikiDataDir>data</xwikiDataDir>
+   </properties>
+@@ -183,11 +184,6 @@
+     <!-- Database Profiles used in several module builds -->
+     <profile>
+       <id>hsqldb</id>
+-      <!-- Activate this profile by default. Note that it you wish to run with another profile you'll need to explicitly
+-           add this profile -->
+-      <activation>
+-        <activeByDefault>true</activeByDefault>
+-      </activation>
+       <properties>
+         <xwiki.db>hsqldb</xwiki.db>
+         <xwiki.db.jdbc.groupId>org.hsqldb</xwiki.db.jdbc.groupId>
+@@ -248,5 +244,30 @@
+         <xwiki.db.hbm.feeds>feeds.hbm.xml</xwiki.db.hbm.feeds>
+       </properties>
+     </profile>
++    <profile>
++      <id>datanucleus</id>
++      <activation>
++        <activeByDefault>true</activeByDefault>
++      </activation>
++      <properties>
++        <xwiki.db>datanucleus</xwiki.db>
++        <xwiki.cfg.additionalproperties>
++            xwiki.store.main.hint=datanucleus
++            xwiki.store.attachment.hint=datanucleus
++
++            #todo xwiki.store.versioning.hint=datanucleus
++            xwiki.store.versioning=0
++
++            #todo xwiki.store.attachment.versioning.hint=file
++            xwiki.store.attachment.versioning.hint=void
++
++            #todo xwiki.store.recyclebin.hint=datanucleus
++            xwiki.recyclebin=0
++
++            #todo xwiki.store.attachment.recyclebin.hint=file
++            storage.attachment.recyclebin=0
++        </xwiki.cfg.additionalproperties>
++      </properties>
++    </profile>
+   </profiles>
+ </project>
+diff --git a/xwiki-enterprise-database/pom.xml b/xwiki-enterprise-database/pom.xml
+index e1f105a..b45d083 100644
+--- a/xwiki-enterprise-database/pom.xml
++++ b/xwiki-enterprise-database/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-database</artifactId>
+   <name>XWiki Enterprise - Database - Parent POM</name>
+@@ -80,11 +80,12 @@
+             </hibernateConfig>
+           </configuration>
+           <dependencies>
+-            <dependency>
++            <!--<dependency>
+               <groupId>${xwiki.db.jdbc.groupId}</groupId>
+               <artifactId>${xwiki.db.jdbc.artifactId}</artifactId>
+               <version>${xwiki.db.jdbc.version}</version>
+-            </dependency>
++            </dependency>-->
++
+             <!-- Since we're building XWiki Enterprise, we need to add the ActivityStream plugin as a dependency,
+                  which has its own mapping and migrators. -->
+             <dependency>
+@@ -147,11 +148,6 @@
+   <profiles>
+     <profile>
+       <id>hsqldb</id>
+-      <!-- Activate this profile by default. Note that it you wish to run with another profile you'll need to explicitly
+-           add this profile -->
+-      <activation>
+-        <activeByDefault>true</activeByDefault>
+-      </activation>
+       <modules>
+         <module>xwiki-enterprise-database-hsqldb</module>
+       </modules>
+@@ -175,6 +171,15 @@
+       </modules>
+     </profile>
+     <profile>
++      <id>datanucleus</id>
++      <activation>
++        <activeByDefault>true</activeByDefault>
++      </activation>
++      <modules>
++        <module>xwiki-enterprise-database-datanucleus</module>
++      </modules>
++    </profile>
++    <profile>
+       <id>clover</id>
+       <build>
+         <pluginManagement>
+diff --git a/xwiki-enterprise-database/xwiki-enterprise-database-datanucleus/pom.xml b/xwiki-enterprise-database/xwiki-enterprise-database-datanucleus/pom.xml
+new file mode 100644
+index 0000000..7f692da
+--- /dev/null
++++ b/xwiki-enterprise-database/xwiki-enterprise-database-datanucleus/pom.xml
+@@ -0,0 +1,36 @@
++<?xml version="1.0" encoding="UTF-8"?>
++
++<!--
++ *
++ * See the NOTICE file distributed with this work for additional
++ * information regarding copyright ownership.
++ *
++ * This is free software; you can redistribute it and/or modify it
++ * under the terms of the GNU Lesser General Public License as
++ * published by the Free Software Foundation; either version 2.1 of
++ * the License, or (at your option) any later version.
++ *
++ * This software is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this software; if not, write to the Free
++ * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
++ * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
++ *
++-->
++
++<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
++  <modelVersion>4.0.0</modelVersion>
++  <parent>
++    <groupId>org.xwiki.enterprise</groupId>
++    <artifactId>xwiki-enterprise-database</artifactId>
++    <version>4.2-SNAPSHOT</version>
++  </parent>
++  <artifactId>xwiki-enterprise-database-datanucleus</artifactId>
++  <name>XWiki Enterprise - Database - DataNucleus</name>
++  <packaging>pom</packaging>
++  <description>XWiki Enterprise - Database - DataNucleus</description>
++</project>
+diff --git a/xwiki-enterprise-database/xwiki-enterprise-database-derby/pom.xml b/xwiki-enterprise-database/xwiki-enterprise-database-derby/pom.xml
+index 5b7f568..19c0b50 100644
+--- a/xwiki-enterprise-database/xwiki-enterprise-database-derby/pom.xml
++++ b/xwiki-enterprise-database/xwiki-enterprise-database-derby/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-database</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-database-derby</artifactId>
+   <name>XWiki Enterprise - Database - Derby</name>
+diff --git a/xwiki-enterprise-database/xwiki-enterprise-database-hsqldb/pom.xml b/xwiki-enterprise-database/xwiki-enterprise-database-hsqldb/pom.xml
+index d93f9d8..201cd2d 100644
+--- a/xwiki-enterprise-database/xwiki-enterprise-database-hsqldb/pom.xml
++++ b/xwiki-enterprise-database/xwiki-enterprise-database-hsqldb/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-database</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-database-hsqldb</artifactId>
+   <name>XWiki Enterprise - Database - HSQLDB</name>
+diff --git a/xwiki-enterprise-database/xwiki-enterprise-database-mysql/pom.xml b/xwiki-enterprise-database/xwiki-enterprise-database-mysql/pom.xml
+index 7c24683..bd53093 100644
+--- a/xwiki-enterprise-database/xwiki-enterprise-database-mysql/pom.xml
++++ b/xwiki-enterprise-database/xwiki-enterprise-database-mysql/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-database</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-database-mysql</artifactId>
+   <name>XWiki Enterprise - Database - MySQL</name>
+diff --git a/xwiki-enterprise-database/xwiki-enterprise-database-pgsql/pom.xml b/xwiki-enterprise-database/xwiki-enterprise-database-pgsql/pom.xml
+index 7dd06ed..38dd381 100644
+--- a/xwiki-enterprise-database/xwiki-enterprise-database-pgsql/pom.xml
++++ b/xwiki-enterprise-database/xwiki-enterprise-database-pgsql/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-database</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-database-pgsql</artifactId>
+   <name>XWiki Enterprise - Database - PGSQL</name>
+diff --git a/xwiki-enterprise-distribution/pom.xml b/xwiki-enterprise-distribution/pom.xml
+index 68e9e9d..0e5cd9a 100644
+--- a/xwiki-enterprise-distribution/pom.xml
++++ b/xwiki-enterprise-distribution/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-distribution</artifactId>
+   <name>XWiki Enterprise - Distribution - Parent POM</name>
+diff --git a/xwiki-enterprise-distribution/xwiki-enterprise-glassfish/pom.xml b/xwiki-enterprise-distribution/xwiki-enterprise-glassfish/pom.xml
+index e3098fe..208e1ae 100644
+--- a/xwiki-enterprise-distribution/xwiki-enterprise-glassfish/pom.xml
++++ b/xwiki-enterprise-distribution/xwiki-enterprise-glassfish/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-distribution</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-glassfish</artifactId>
+   <name>XWiki Enterprise - Distribution - GlassFish</name>
+diff --git a/xwiki-enterprise-distribution/xwiki-enterprise-glassfish/xwiki-enterprise-glassfish-derby/pom.xml b/xwiki-enterprise-distribution/xwiki-enterprise-glassfish/xwiki-enterprise-glassfish-derby/pom.xml
+index c0ce630..b623af1 100644
+--- a/xwiki-enterprise-distribution/xwiki-enterprise-glassfish/xwiki-enterprise-glassfish-derby/pom.xml
++++ b/xwiki-enterprise-distribution/xwiki-enterprise-glassfish/xwiki-enterprise-glassfish-derby/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-glassfish</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-glassfish-derby</artifactId>
+   <name>XWiki Enterprise - Distribution - GlassFish - Derby</name>
+diff --git a/xwiki-enterprise-distribution/xwiki-enterprise-jetty/pom.xml b/xwiki-enterprise-distribution/xwiki-enterprise-jetty/pom.xml
+index 1949530..63a259f 100644
+--- a/xwiki-enterprise-distribution/xwiki-enterprise-jetty/pom.xml
++++ b/xwiki-enterprise-distribution/xwiki-enterprise-jetty/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-distribution</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-jetty</artifactId>
+   <name>XWiki Enterprise - Distribution - Jetty</name>
+@@ -56,14 +56,14 @@
+       <optional>true</optional>
+     </dependency>
+     <!-- Add the database JAR so that it's included in the expanded WAR since it's not included
+-         by default in the Platform WAR. -->
++         by default in the Platform WAR. -
+     <dependency>
+       <groupId>${xwiki.db.jdbc.groupId}</groupId>
+       <artifactId>${xwiki.db.jdbc.artifactId}</artifactId>
+       <version>${xwiki.db.jdbc.version}</version>
+       <scope>runtime</scope>
+       <optional>true</optional>
+-    </dependency>
++    </dependency>-->
+   </dependencies>
+   <build>
+     <pluginManagement>
+@@ -100,11 +100,6 @@
+   <profiles>
+     <profile>
+       <id>hsqldb</id>
+-      <!-- Activate this profile by default. Note that it you wish to run with another profile you'll need to explicitly
+-           add this profile -->
+-      <activation>
+-        <activeByDefault>true</activeByDefault>
+-      </activation>
+       <modules>
+         <module>xwiki-enterprise-jetty-hsqldb</module>
+       </modules>
+@@ -127,5 +122,14 @@
+         <module>xwiki-enterprise-jetty-mysql</module>
+       </modules>
+     </profile>
++    <profile>
++      <id>datanucleus</id>
++      <activation>
++        <activeByDefault>true</activeByDefault>
++      </activation>
++      <modules>
++        <module>xwiki-enterprise-jetty-datanucleus</module>
++      </modules>
++    </profile>
+   </profiles>
+ </project>
+diff --git a/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-datanucleus/pom.xml b/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-datanucleus/pom.xml
+new file mode 100644
+index 0000000..66c029e
+--- /dev/null
++++ b/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-datanucleus/pom.xml
+@@ -0,0 +1,54 @@
++<?xml version="1.0" encoding="UTF-8"?>
++
++<!--
++ *
++ * See the NOTICE file distributed with this work for additional
++ * information regarding copyright ownership.
++ *
++ * This is free software; you can redistribute it and/or modify it
++ * under the terms of the GNU Lesser General Public License as
++ * published by the Free Software Foundation; either version 2.1 of
++ * the License, or (at your option) any later version.
++ *
++ * This software is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this software; if not, write to the Free
++ * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
++ * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
++ *
++-->
++
++<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
++  <modelVersion>4.0.0</modelVersion>
++  <parent>
++    <groupId>org.xwiki.enterprise</groupId>
++    <artifactId>xwiki-enterprise-jetty</artifactId>
++    <version>4.2-SNAPSHOT</version>
++  </parent>
++  <artifactId>xwiki-enterprise-jetty-datanucleus</artifactId>
++  <name>XWiki Enterprise - Distribution - Jetty - DataNucleus</name>
++  <packaging>pom</packaging>
++  <description>XWiki Enterprise - Distribution - Jetty - DataNucleus</description>
++  <build>
++    <plugins>
++      <!-- Inject Hibernate's configuration for the specified database -->
++      <plugin>
++        <groupId>org.apache.maven.plugins</groupId>
++        <artifactId>maven-remote-resources-plugin</artifactId>
++      </plugin>
++      <plugin>
++        <groupId>org.apache.maven.plugins</groupId>
++        <artifactId>maven-assembly-plugin</artifactId>
++        <configuration>
++          <descriptors>
++            <descriptor>src/assemble/application.xml</descriptor>
++          </descriptors>
++        </configuration>
++      </plugin>
++    </plugins>
++  </build>
++</project>
+diff --git a/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-datanucleus/src/assemble/application.xml b/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-datanucleus/src/assemble/application.xml
+new file mode 100644
+index 0000000..fb89b7a
+--- /dev/null
++++ b/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-datanucleus/src/assemble/application.xml
+@@ -0,0 +1,120 @@
++<!--
++ *
++ * See the NOTICE file distributed with this work for additional
++ * information regarding copyright ownership.
++ *
++ * This is free software; you can redistribute it and/or modify it
++ * under the terms of the GNU Lesser General Public License as
++ * published by the Free Software Foundation; either version 2.1 of
++ * the License, or (at your option) any later version.
++ *
++ * This software is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this software; if not, write to the Free
++ * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
++ * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
++ *
++-->
++
++<assembly>
++  <id>distribution</id>
++  <formats>
++    <format>zip</format>
++  </formats>
++  <includeBaseDirectory>true</includeBaseDirectory>
++  <dependencySets>
++    <!-- "xwiki" webapp. -->
++    <dependencySet>
++      <includes>
++        <include>org.xwiki.enterprise:xwiki-enterprise-web</include>
++      </includes>
++      <outputDirectory>webapps/xwiki</outputDirectory>
++      <unpack>true</unpack>
++      <!--<unpackOptions>
++        <excludes>
++          <exclude>**/hibernate.cfg.xml</exclude>
++        </excludes>
++      </unpackOptions>-->
++    </dependencySet>
++    <!-- ROOT webapp, redirecting to /xwiki/ when no application is specified. -->
++    <dependencySet>
++      <includes>
++        <include>org.xwiki.platform:xwiki-platform-tool-rootwebapp</include>
++      </includes>
++      <outputDirectory>webapps/root</outputDirectory>
++      <unpack>true</unpack>
++    </dependencySet>
++    <!-- Unpack Jetty files
++         Note1: We need to apply filtering to resolve the "xwikiDataDir" property in start shell scripts.
++         Note2: Since the Assembly plugin doesn't allow us to specify which files should be filtered we need two
++                definitions, one with only start shell scripts and one without them.
++    -->
++    <dependencySet>
++      <includes>
++        <include>org.xwiki.platform:xwiki-platform-tool-jetty-resources</include>
++      </includes>
++      <outputDirectory>/</outputDirectory>
++      <unpack>true</unpack>
++      <!-- TODO: This shouldn't be needed but there's a bug see http://jira.codehaus.org/browse/MASSEMBLY-554 -->
++      <outputFileNameMapping>/</outputFileNameMapping>
++      <unpackOptions>
++        <filtered>true</filtered>
++        <includes>
++          <include>**/start_xwiki*.*</include>
++        </includes>
++      </unpackOptions>
++      <!-- Extracting some resources from the dependency somehow looses the file permissions, so we need to set them
++           again so that the start xwiki scripts are executable... -->
++      <fileMode>755</fileMode>
++    </dependencySet>
++    <dependencySet>
++      <includes>
++        <include>org.xwiki.platform:xwiki-platform-tool-jetty-resources</include>
++      </includes>
++      <outputDirectory>/</outputDirectory>
++      <unpack>true</unpack>
++      <!-- TODO: This shouldn't be needed but there's a bug see http://jira.codehaus.org/browse/MASSEMBLY-554 -->
++      <outputFileNameMapping>/</outputFileNameMapping>
++      <unpackOptions>
++        <filtered>false</filtered>
++        <excludes>
++          <exclude>**/start_xwiki*.*</exclude>
++        </excludes>
++      </unpackOptions>
++    </dependencySet>
++    <!-- Add JDBC driver for the database to use.
++    <dependencySet>
++      <includes>
++        <include>${xwiki.db.jdbc.groupId}:${xwiki.db.jdbc.artifactId}</include>
++      </includes>
++      <outputDirectory>webapps/xwiki/WEB-INF/lib</outputDirectory>
++      <unpack>false</unpack>
++    </dependencySet>
++    <!- Unpack the HSQLDB database files to package it in the distribution ->
++    <dependencySet>
++      <includes>
++        <include>org.xwiki.enterprise:xwiki-enterprise-database-${xwiki.db}</include>
++      </includes>
++      <outputDirectory>/${xwikiDataDir}/database</outputDirectory>
++      <unpack>true</unpack>
++    </dependencySet>-->
++  </dependencySets>
++  <!-- Add Hibernate configuration file -->
++  <files>
++    <file>
++      <source>${basedir}/target/maven-shared-archive-resources/hibernate.cfg.xml</source>
++      <outputDirectory>webapps/xwiki/WEB-INF</outputDirectory>
++    </file>
++  </files>
++  <!-- Add License/Notice files -->
++  <fileSets>
++    <fileSet>
++      <directory>${basedir}/target/maven-shared-archive-resources/META-INF</directory>
++      <outputDirectory>META-INF</outputDirectory>
++    </fileSet>
++  </fileSets>
++</assembly>
+diff --git a/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-derby/pom.xml b/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-derby/pom.xml
+index c90c933..249fb6e 100644
+--- a/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-derby/pom.xml
++++ b/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-derby/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-jetty</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-jetty-derby</artifactId>
+   <name>XWiki Enterprise - Distribution - Jetty - Derby</name>
+diff --git a/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-hsqldb/pom.xml b/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-hsqldb/pom.xml
+index a0174f3..2979542 100644
+--- a/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-hsqldb/pom.xml
++++ b/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-hsqldb/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-jetty</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-jetty-hsqldb</artifactId>
+   <name>XWiki Enterprise - Distribution - Jetty - HSQLDB</name>
+diff --git a/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-mysql/pom.xml b/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-mysql/pom.xml
+index d72d76c..be54616 100644
+--- a/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-mysql/pom.xml
++++ b/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-mysql/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-jetty</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-jetty-mysql</artifactId>
+   <name>XWiki Enterprise - Distribution - Jetty - MySQL</name>
+diff --git a/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-pgsql/pom.xml b/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-pgsql/pom.xml
+index 596ad18..a2aa436 100644
+--- a/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-pgsql/pom.xml
++++ b/xwiki-enterprise-distribution/xwiki-enterprise-jetty/xwiki-enterprise-jetty-pgsql/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-jetty</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-jetty-pgsql</artifactId>
+   <name>XWiki Enterprise - Distribution - Jetty - PGSQL</name>
+diff --git a/xwiki-enterprise-distribution/xwiki-enterprise-ui-all/pom.xml b/xwiki-enterprise-distribution/xwiki-enterprise-ui-all/pom.xml
+index 7e9a2af..6dd6cc4 100644
+--- a/xwiki-enterprise-distribution/xwiki-enterprise-ui-all/pom.xml
++++ b/xwiki-enterprise-distribution/xwiki-enterprise-ui-all/pom.xml
+@@ -3,7 +3,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-distribution</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-ui-all</artifactId>
+   <name>XWiki Enterprise - UI All</name>
+diff --git a/xwiki-enterprise-installers/pom.xml b/xwiki-enterprise-installers/pom.xml
+index b682336..b796da9 100644
+--- a/xwiki-enterprise-installers/pom.xml
++++ b/xwiki-enterprise-installers/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-installers</artifactId>
+   <name>XWiki Enterprise - Installers - Parent POM</name>
+diff --git a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/pom.xml b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/pom.xml
+index 46c6541..2047322 100644
+--- a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/pom.xml
++++ b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-installers</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-installer-debian</artifactId>
+   <name>XWiki Enterprise - Installer - Debian</name>
+diff --git a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-common/pom.xml b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-common/pom.xml
+index 60720bc..cf9a172 100644
+--- a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-common/pom.xml
++++ b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-common/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-installer-debian</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-installer-debian-common</artifactId>
+   <name>XWiki Enterprise - Installer - Debian - Common</name>
+diff --git a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-mysql-common/pom.xml b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-mysql-common/pom.xml
+index 43a4670..9a468d5 100644
+--- a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-mysql-common/pom.xml
++++ b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-mysql-common/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-installer-debian</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-installer-debian-mysql-common</artifactId>
+   <name>XWiki Enterprise - Installer - Debian - MySQL - Common</name>
+diff --git a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-pgsql-common/pom.xml b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-pgsql-common/pom.xml
+index acb330c..f2c4118 100644
+--- a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-pgsql-common/pom.xml
++++ b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-pgsql-common/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-installer-debian</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-installer-debian-pgsql-common</artifactId>
+   <name>XWiki Enterprise - Installer - Debian - Postgres SQL - Common</name>
+diff --git a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/pom.xml b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/pom.xml
+index f5934d7..0101d39 100644
+--- a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/pom.xml
++++ b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-installer-debian</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-installer-debian-tomcat</artifactId>
+   <name>XWiki Enterprise - Installer - Debian - Tomcat</name>
+diff --git a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat-common/pom.xml b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat-common/pom.xml
+index b7b2bee..91286e0 100644
+--- a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat-common/pom.xml
++++ b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat-common/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-installer-debian-tomcat</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-installer-debian-tomcat-common</artifactId>
+   <name>XWiki Enterprise - Installer - Debian - Tomcat - Common</name>
+diff --git a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat5-mysql/pom.xml b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat5-mysql/pom.xml
+index c6da30a..23cac11 100644
+--- a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat5-mysql/pom.xml
++++ b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat5-mysql/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-installer-debian-tomcat</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-installer-debian-tomcat5-mysql</artifactId>
+   <name>XWiki Enterprise - Installer - Debian - Tomcat 5 - MySQL</name>
+diff --git a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat5-pgsql/pom.xml b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat5-pgsql/pom.xml
+index 70c6f25..12b292c 100644
+--- a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat5-pgsql/pom.xml
++++ b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat5-pgsql/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-installer-debian-tomcat</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-installer-debian-tomcat5-pgsql</artifactId>
+   <name>XWiki Enterprise - Installer - Debian - Tomcat 5 - Postgres SQL</name>
+diff --git a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat6-mysql/pom.xml b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat6-mysql/pom.xml
+index 913fdc5..002a41c 100644
+--- a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat6-mysql/pom.xml
++++ b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat6-mysql/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-installer-debian-tomcat</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-installer-debian-tomcat6-mysql</artifactId>
+   <name>XWiki Enterprise - Installer - Debian - Tomcat 6 - MySQL</name>
+diff --git a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat6-pgsql/pom.xml b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat6-pgsql/pom.xml
+index 1e9cff3..e427c2d 100644
+--- a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat6-pgsql/pom.xml
++++ b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat6-pgsql/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-installer-debian-tomcat</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-installer-debian-tomcat6-pgsql</artifactId>
+   <name>XWiki Enterprise - Installer - Debian - Tomcat 6 - Postgres SQL</name>
+diff --git a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat7-mysql/pom.xml b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat7-mysql/pom.xml
+index 83dd2ad..e105fab 100644
+--- a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat7-mysql/pom.xml
++++ b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat7-mysql/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-installer-debian-tomcat</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-installer-debian-tomcat7-mysql</artifactId>
+   <name>XWiki Enterprise - Installer - Debian - Tomcat 7 - MySQL</name>
+diff --git a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat7-pgsql/pom.xml b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat7-pgsql/pom.xml
+index 1ab5a56..ed4f6d3 100644
+--- a/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat7-pgsql/pom.xml
++++ b/xwiki-enterprise-installers/xwiki-enterprise-installer-debian/xwiki-enterprise-installer-debian-tomcat/xwiki-enterprise-installer-debian-tomcat7-pgsql/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-installer-debian-tomcat</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-installer-debian-tomcat7-pgsql</artifactId>
+   <name>XWiki Enterprise - Installer - Debian - Tomcat 7 - Postgres SQL</name>
+diff --git a/xwiki-enterprise-installers/xwiki-enterprise-installer-generic/pom.xml b/xwiki-enterprise-installers/xwiki-enterprise-installer-generic/pom.xml
+index a2d54dc..5e12ff7 100644
+--- a/xwiki-enterprise-installers/xwiki-enterprise-installer-generic/pom.xml
++++ b/xwiki-enterprise-installers/xwiki-enterprise-installer-generic/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-installers</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-installer-generic</artifactId>
+   <name>XWiki Enterprise - Installers - Generic</name>
+diff --git a/xwiki-enterprise-installers/xwiki-enterprise-installer-windows/pom.xml b/xwiki-enterprise-installers/xwiki-enterprise-installer-windows/pom.xml
+index cf409b8..0e70c23 100644
+--- a/xwiki-enterprise-installers/xwiki-enterprise-installer-windows/pom.xml
++++ b/xwiki-enterprise-installers/xwiki-enterprise-installer-windows/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-installers</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-installer-windows</artifactId>
+   <name>XWiki Enterprise - Installers - Windows</name>
+diff --git a/xwiki-enterprise-test/pom.xml b/xwiki-enterprise-test/pom.xml
+index 5dbae6c..4375295 100644
+--- a/xwiki-enterprise-test/pom.xml
++++ b/xwiki-enterprise-test/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-test</artifactId>
+   <name>XWiki Enterprise - Functional Tests - Parent POM</name>
+@@ -110,6 +110,8 @@
+                   </artifactItem>
+                 </artifactItems>
+                 <outputDirectory>${project.build.directory}</outputDirectory>
++                <!-- Allow skipping the unpack -->
++                <skip>${xwiki.test.skipUnpack}</skip>
+               </configuration>
+             </execution>
+           </executions>
+@@ -144,6 +146,14 @@
+                 <value>${patternMethod}</value>
+               </property>
+               <property>
++                <name>xwiki.test.baseURL</name>
++                <value>${xwiki.test.baseURL}</value>
++              </property>
++              <property>
++                <name>xwiki.test.skipStart</name>
++                <value>${xwiki.test.skipStart}</value>
++              </property>
++              <property>
+                 <name>xwikiPort</name>
+                 <value>${port}</value>
+               </property>
+@@ -357,6 +367,19 @@
+     <stopport>8079</stopport>
+     <rmiport>6666</rmiport>
+     <seleniumPort>4444</seleniumPort>
++    <!-- Allow skipping the unpack -->
++    <xwiki.test.skipUnpack>false</xwiki.test.skipUnpack>
++    <!-- Specify the part of the URL before the port number where the XWiki instance is running. This is used when running tests on a remote instance.
++         Do not add a trailing slash. Example:
++         http://localhost
++         https://testmachine.mynetwork.net
++         See also "port" for defining the port to connect to.
++    -->
++    <xwiki.test.baseURL>http://localhost</xwiki.test.baseURL>
++    <!-- Skip starting the XE instance. This is used when there is an instance already running on the local machine
++         or when there is a started instance on another machine
++    -->
++    <xwiki.test.skipStart>false</xwiki.test.skipStart>
+     <!-- Run tests on Firefox by default. You can use a different browser by activating the corresponding profile,
+          e.g. -Pchrome -->
+     <browser>*firefox</browser>
+diff --git a/xwiki-enterprise-test/xwiki-enterprise-test-cluster/pom.xml b/xwiki-enterprise-test/xwiki-enterprise-test-cluster/pom.xml
+index 5517787..97000f2 100644
+--- a/xwiki-enterprise-test/xwiki-enterprise-test-cluster/pom.xml
++++ b/xwiki-enterprise-test/xwiki-enterprise-test-cluster/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-test</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-test-cluster</artifactId>
+   <name>XWiki Enterprise - Functional Tests - Cluster</name>
+diff --git a/xwiki-enterprise-test/xwiki-enterprise-test-escaping/pom.xml b/xwiki-enterprise-test/xwiki-enterprise-test-escaping/pom.xml
+index 2345ac3..8546995 100644
+--- a/xwiki-enterprise-test/xwiki-enterprise-test-escaping/pom.xml
++++ b/xwiki-enterprise-test/xwiki-enterprise-test-escaping/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-test</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-test-escaping</artifactId>
+   <name>XWiki Enterprise - Functional Tests - Escaping</name>
+diff --git a/xwiki-enterprise-test/xwiki-enterprise-test-extension/pom.xml b/xwiki-enterprise-test/xwiki-enterprise-test-extension/pom.xml
+index b0aed97..ba903b5 100644
+--- a/xwiki-enterprise-test/xwiki-enterprise-test-extension/pom.xml
++++ b/xwiki-enterprise-test/xwiki-enterprise-test-extension/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-test</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-test-extension</artifactId>
+   <name>XWiki Enterprise - Functional Tests - Extension Manager</name>
+diff --git a/xwiki-enterprise-test/xwiki-enterprise-test-ldap/pom.xml b/xwiki-enterprise-test/xwiki-enterprise-test-ldap/pom.xml
+index c6bcb20..7b34cfe 100644
+--- a/xwiki-enterprise-test/xwiki-enterprise-test-ldap/pom.xml
++++ b/xwiki-enterprise-test/xwiki-enterprise-test-ldap/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-test</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-test-ldap</artifactId>
+   <name>XWiki Enterprise - Functional Tests - LDAP</name>
+diff --git a/xwiki-enterprise-test/xwiki-enterprise-test-misc/pom.xml b/xwiki-enterprise-test/xwiki-enterprise-test-misc/pom.xml
+index f15a577..7aada31 100644
+--- a/xwiki-enterprise-test/xwiki-enterprise-test-misc/pom.xml
++++ b/xwiki-enterprise-test/xwiki-enterprise-test-misc/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-test</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-test-misc</artifactId>
+   <name>XWiki Enterprise - Functional Tests - Misc.</name>
+diff --git a/xwiki-enterprise-test/xwiki-enterprise-test-pageobjects/pom.xml b/xwiki-enterprise-test/xwiki-enterprise-test-pageobjects/pom.xml
+index 1fbeed9..ade466b 100644
+--- a/xwiki-enterprise-test/xwiki-enterprise-test-pageobjects/pom.xml
++++ b/xwiki-enterprise-test/xwiki-enterprise-test-pageobjects/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-test</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-test-pageobjects</artifactId>
+   <name>XWiki Enterprise - Functional Tests - Page Objects test framework</name>
+diff --git a/xwiki-enterprise-test/xwiki-enterprise-test-rest/pom.xml b/xwiki-enterprise-test/xwiki-enterprise-test-rest/pom.xml
+index a372b2a..a629b6d 100644
+--- a/xwiki-enterprise-test/xwiki-enterprise-test-rest/pom.xml
++++ b/xwiki-enterprise-test/xwiki-enterprise-test-rest/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-test</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-test-rest</artifactId>
+   <name>XWiki Enterprise - Functional Tests - REST</name>
+diff --git a/xwiki-enterprise-test/xwiki-enterprise-test-selenium/pom.xml b/xwiki-enterprise-test/xwiki-enterprise-test-selenium/pom.xml
+index 645a3f9..32c7f00 100644
+--- a/xwiki-enterprise-test/xwiki-enterprise-test-selenium/pom.xml
++++ b/xwiki-enterprise-test/xwiki-enterprise-test-selenium/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-test</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-test-selenium</artifactId>
+   <name>XWiki Enterprise - Functional Tests - Selenium</name>
+diff --git a/xwiki-enterprise-test/xwiki-enterprise-test-storage/log b/xwiki-enterprise-test/xwiki-enterprise-test-storage/log
+new file mode 100644
+index 0000000..a03e990
+--- /dev/null
++++ b/xwiki-enterprise-test/xwiki-enterprise-test-storage/log
+@@ -0,0 +1,1834 @@
++[INFO] Scanning for projects...
++[INFO]                                                                         
++[INFO] ------------------------------------------------------------------------
++[INFO] Building XWiki Enterprise - Functional Tests - Storage 3.4-SNAPSHOT
++[INFO] ------------------------------------------------------------------------
++[INFO] 
++[INFO] --- maven-clean-plugin:2.4.1:clean (default-clean) @ xwiki-enterprise-test-storage ---
++[INFO] Deleting /home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target
++[INFO] 
++[INFO] --- maven-enforcer-plugin:1.0.1:enforce (enforce-plugins) @ xwiki-enterprise-test-storage ---
++[INFO] The requirePluginVersions rule is currently not compatible with Maven3.
++[INFO] 
++[INFO] --- maven-enforcer-plugin:1.0.1:enforce (enforce-correct-junit-dependency) @ xwiki-enterprise-test-storage ---
++[INFO] 
++[INFO] --- maven-enforcer-plugin:1.0.1:enforce (enforce-jcl-log4j-isolation) @ xwiki-enterprise-test-storage ---
++[INFO] 
++[INFO] --- maven-enforcer-plugin:1.0.1:enforce (enforce-no-legacy-dependencies) @ xwiki-enterprise-test-storage ---
++[INFO] 
++[INFO] --- maven-remote-resources-plugin:1.2.1:process (xwiki-license-resources) @ xwiki-enterprise-test-storage ---
++[INFO] 
++[INFO] --- maven-remote-resources-plugin:1.2.1:process (xwiki-platform-tool-configuration-resources) @ xwiki-enterprise-test-storage ---
++[ERROR] Left side ($xwikiDbConnectionUrl) of '!=' operation has null value. Operation not possible. hibernate.cfg.xml.vm [line 62, column 30]
++[INFO] 
++[INFO] --- maven-resources-plugin:2.5:testResources (default) @ xwiki-enterprise-test-storage ---
++[debug] execute contextualize
++[INFO] Using 'UTF-8' encoding to copy filtered resources.
++[INFO] Copying 1 resource
++[INFO] Copying 5 resources
++[INFO] Copying 5 resources
++[INFO] 
++[INFO] --- maven-compiler-plugin:2.3.2:testCompile (default) @ xwiki-enterprise-test-storage ---
++[INFO] Compiling 9 source files to /home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/test-classes
++[INFO] 
++[INFO] --- maven-jar-plugin:2.3.1:test-jar (default) @ xwiki-enterprise-test-storage ---
++[INFO] Building jar: /home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-test-storage-3.4-SNAPSHOT-tests.jar
++[INFO] 
++[INFO] --- maven-dependency-plugin:2.3:unpack (unzip-application) @ xwiki-enterprise-test-storage ---
++[INFO] Configured Artifact: org.xwiki.enterprise:xwiki-enterprise-jetty-datanucleus:3.4-SNAPSHOT:zip
++[INFO] Unpacking /home/user/.m2/repository/org/xwiki/enterprise/xwiki-enterprise-jetty-datanucleus/3.4-SNAPSHOT/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT.zip to /home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target with includes "" and excludes ""
++[INFO] 
++[INFO] --- maven-surefire-plugin:2.10:test (default) @ xwiki-enterprise-test-storage ---
++[INFO] Surefire report directory: /home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/surefire-reports
++
++-------------------------------------------------------
++ T E S T S
++-------------------------------------------------------
++Running org.xwiki.test.storage.AllTests
++Starting XWiki server start
++Checking that XWiki is up and running...
++Could not load definitions from resource org/apache/tools/ant/antlib.xml. It could not be found.
++The command attribute is deprecated.
++Please use the executable attribute and nested arg elements.
++Current OS is Linux
++Executing 'sh' with arguments:
++'-f'
++'start_xwiki.sh'
++'8080'
++'8079'
++
++The ' characters around the executable and arguments are
++not part of the command.
++Starting Jetty on port 8080 ...
++Logs are in the ./xwiki.log file
++2012-03-17 02:29:59.866:INFO::jetty-7.4.5.v20110725
++2012-03-17 02:29:59.891:INFO::Opened /home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/logs/2012_03_17.request.log
++2012-03-17 02:29:59.897:INFO::Deployment monitor /home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/contexts at interval 1
++2012-03-17 02:29:59.903:INFO::Deployable added: /home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/contexts/xwiki.xml
++2012-03-17 02:30:08.408:INFO::NO JSP Support for /xwiki, did not find org.apache.jasper.servlet.JspServlet
++2012-03-17 02:30:11.810:INFO::started o.e.j.w.WebAppContext{/xwiki,file:/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/webapps/xwiki/},/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/../webapps/xwiki
++2012-03-17 02:30:12.252:INFO::Deployable added: /home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/contexts/root.xml
++2012-03-17 02:30:12.270:INFO::NO JSP Support for /, did not find org.apache.jasper.servlet.JspServlet
++2012-03-17 02:30:12.274:INFO::started o.e.j.w.WebAppContext{/,file:/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/webapps/root/},/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/../webapps/root
++2012-03-17 02:30:12.297:INFO::Started SelectChannelConnector@0.0.0.0:8080 STARTING
++2012-03-17 02:30:13,855 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  o.a.c.s.StorageService         - Generated random token Token(bytes[2b3151aca0ed69089f22992b73269145]). Random tokens will result in an unbalanced ring; see http://wiki.apache.org/cassandra/Operations 
++2012-03-17 02:30:15,727 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  o.s.c.p.p.CommonsBackedPool    - The thrift timeout value (10000ms) is greater than the pools maxWaitForConnection value (4000ms).  This could lead to errors when a node is down.  As a general rule the pools maxWaitForConnection should be three times larger than the thrift timeout value. 
++Storing: getWikiMacroDocuments  
++      SELECT space, name, author
++        FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument
++        WHERE objects.contains(obj)
++          && obj instanceof xwiki.XWiki.WikiMacroClass
++    
++Storing: getWatchlistJobDocuments  
++      SELECT fullName
++        FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument
++        WHERE objects.contains(obj)
++          && obj instanceof xwiki.XWiki.WatchListJob
++    
++Storing: getTranslationList  
++      SELECT language
++        FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument
++        WHERE wiki == :wiki
++          && fullName == :fullname
++    
++Storing: listGroupsForUser  
++      SELECT DISTINCT fullName
++        FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument
++        WHERE objects.contains(obj)
++        && (
++          obj.member == :username
++          || obj.member == :shortname
++          || obj.member == :veryshortname
++        )
++        VARIABLES xwiki.XWiki.XWikiGroups obj
++    
++Storing: getSpaces  
++      SELECT DISTINCT space
++        FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument
++    
++Storing: $staticClassInfo  org.codehaus.groovy.reflection.ClassInfo@48f4c9c4
++Storing: __$stMC  false
++Storing: metaClass  groovy.lang.MetaClassImpl@17990d96[class DataNucleusNamedQueries]
++Storing: __timeStamp  1331965816517
++Storing: __timeStamp__239_neverHappen1331965816518  0
++Storing: $callSiteArray  java.lang.ref.SoftReference@22a866a9
++Storing: $class$java$lang$String  null
++Storing: $class$DataNucleusNamedQueries  class DataNucleusNamedQueries
++2012-03-17 02:30:18,058 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  o.i.m.DefaultCacheManager      - ISPN000156: You are not starting all your caches at the same time. This can lead to problems as asymmetric clusters are not supported, see ISPN-658. We recommend using EmbeddedCacheManager.startCaches() to start all your caches upfront. 
++2012-03-17 02:30:20,802 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  o.i.m.DefaultCacheManager      - ISPN000156: You are not starting all your caches at the same time. This can lead to problems as asymmetric clusters are not supported, see ISPN-658. We recommend using EmbeddedCacheManager.startCaches() to start all your caches upfront. 
++2012-03-17 02:30:20,929 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:20,956 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.JavaScriptExtension] which contains [1] classes. 
++2012-03-17 02:30:20,957 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++XWiki.JavaScriptExtension has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:23,769 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:23,770 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.StyleSheetExtension] which contains [1] classes. 
++2012-03-17 02:30:23,770 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++XWiki.StyleSheetExtension has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:23,832 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  o.i.m.DefaultCacheManager      - ISPN000156: You are not starting all your caches at the same time. This can lead to problems as asymmetric clusters are not supported, see ISPN-658. We recommend using EmbeddedCacheManager.startCaches() to start all your caches upfront. 
++2012-03-17 02:30:23,881 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:23,881 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.AggregatorURLClass] which contains [1] classes. 
++2012-03-17 02:30:23,882 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++XWiki.AggregatorURLClass has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:23,942 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:23,943 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.FeedEntryClass] which contains [1] classes. 
++2012-03-17 02:30:23,943 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++XWiki.FeedEntryClass has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:24,048 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  o.i.m.DefaultCacheManager      - ISPN000156: You are not starting all your caches at the same time. This can lead to problems as asymmetric clusters are not supported, see ISPN-658. We recommend using EmbeddedCacheManager.startCaches() to start all your caches upfront. 
++2012-03-17 02:30:24,417 [Lucene Index Rebuilder] ERROR c.x.x.p.l.IndexRebuilder       - Error in lucene rebuild thread: not implemented 
++java.lang.RuntimeException: not implemented
++	at com.xpn.xwiki.store.datanucleus.DataNucleusSearchEngine.search(DataNucleusSearchEngine.java:351) ~[xwiki-platform-store-datanucleus-3.4-SNAPSHOT.jar:na]
++	at com.xpn.xwiki.store.datanucleus.DataNucleusStore.search(DataNucleusStore.java:405) ~[xwiki-platform-store-datanucleus-3.4-SNAPSHOT.jar:na]
++	at com.xpn.xwiki.store.XWikiCacheStore.search(XWikiCacheStore.java:559) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.search(XWiki.java:1663) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.plugin.lucene.IndexRebuilder.indexWiki(IndexRebuilder.java:308) ~[xwiki-platform-search-lucene-3.4-20120214.180613-178.jar:na]
++	at com.xpn.xwiki.plugin.lucene.IndexRebuilder.rebuildIndex(IndexRebuilder.java:265) ~[xwiki-platform-search-lucene-3.4-20120214.180613-178.jar:na]
++	at com.xpn.xwiki.plugin.lucene.IndexRebuilder.runInternal(IndexRebuilder.java:216) ~[xwiki-platform-search-lucene-3.4-20120214.180613-178.jar:na]
++	at com.xpn.xwiki.util.AbstractXWikiRunnable.run(AbstractXWikiRunnable.java:110) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at java.lang.Thread.run(Thread.java:662) [na:1.6.0_30]
++2012-03-17 02:30:24,507 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:24,508 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.SchedulerJobClass] which contains [1] classes. 
++2012-03-17 02:30:24,508 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++XWiki.SchedulerJobClass has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.SchedulerJobClass has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:25,302 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:25,302 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.Mail] which contains [1] classes. 
++2012-03-17 02:30:25,302 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++XWiki.Mail has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.Mail has no attachments right?
++
++
++
++
++
++
++
++A baseobject was null!
++
++
++2012-03-17 02:30:25,988 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:25,988 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.XWikiPreferences] which contains [2] classes. 
++2012-03-17 02:30:25,988 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++2012-03-17 02:30:25,991 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [xwiki.XWiki.ClassSheetBinding] bytecode length [14895]. 
++
++
++
++
++
++
++
++XWiki.XWikiPreferences has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.XWikiPreferences has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:28,338 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:28,338 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.XWikiUsers] which contains [3] classes. 
++2012-03-17 02:30:28,338 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++2012-03-17 02:30:28,341 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [xwiki.XWiki.DocumentSheetBinding] bytecode length [14922]. 
++
++
++
++
++
++
++
++XWiki.XWikiUsers has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.XWikiUsers has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:28,478 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:28,479 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.TagClass] which contains [2] classes. 
++2012-03-17 02:30:28,479 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++XWiki.TagClass has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.TagClass has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:28,560 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:28,561 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.XWikiGroups] which contains [3] classes. 
++2012-03-17 02:30:28,561 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++XWiki.XWikiGroups has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.XWikiGroups has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:28,656 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:28,656 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.XWikiRights] which contains [2] classes. 
++2012-03-17 02:30:28,656 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++XWiki.XWikiRights has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.XWikiRights has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:28,750 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:28,750 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.XWikiComments] which contains [2] classes. 
++2012-03-17 02:30:28,750 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++XWiki.XWikiComments has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.XWikiComments has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:28,831 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:28,832 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.XWikiSkins] which contains [3] classes. 
++2012-03-17 02:30:28,832 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++XWiki.XWikiSkins has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.XWikiSkins has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:28,931 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:28,931 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.XWikiGlobalRights] which contains [2] classes. 
++2012-03-17 02:30:28,932 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++XWiki.XWikiGlobalRights has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.XWikiGlobalRights has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:29,013 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:29,014 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.SheetClass] which contains [2] classes. 
++2012-03-17 02:30:29,014 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++XWiki.SheetClass has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.SheetClass has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:29,092 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:29,092 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.EditModeClass] which contains [2] classes. 
++2012-03-17 02:30:29,092 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++XWiki.EditModeClass has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.EditModeClass has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:29,194 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:29,195 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.WikiMacroClass] which contains [1] classes. 
++2012-03-17 02:30:29,195 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++XWiki.WikiMacroClass has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.WikiMacroClass has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:29,264 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:29,264 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.WikiMacroParameterClass] which contains [1] classes. 
++2012-03-17 02:30:29,265 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++XWiki.WikiMacroParameterClass has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.WikiMacroParameterClass has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:29,793 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR D.Query                        - Cannot find objects member of xwiki.XWiki.DocumentSheetBinding 
++2012-03-17 02:30:29,796 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  D.Query                        - Query contains call to method org.datanucleus.query.evaluator.memory.InMemoryFailure.contains yet no support is available for this 
++2012-03-17 02:30:29,800 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  .m.DefaultWikiMacroInitializer - Failed to register macros for wiki [xwiki]: Failed to run javax.jdo.query.JDOQL query with statement: [
++      SELECT space, name, author
++        FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument
++        WHERE objects.contains(obj)
++          && obj instanceof xwiki.XWiki.WikiMacroClass
++    ]. Query statement = [getWikiMacroDocuments] 
++2012-03-17 02:30:29,994 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  o.i.m.DefaultCacheManager      - ISPN000156: You are not starting all your caches at the same time. This can lead to problems as asymmetric clusters are not supported, see ISPN-658. We recommend using EmbeddedCacheManager.startCaches() to start all your caches upfront. 
++Server is answering to [http://localhost:8080/xwiki/bin/view/Main?xpage=plain]... cool
++2012-03-17 02:30:32,029 [http://127.0.0.1:8080/xwiki/bin/save/Test/Attachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:32,029 [http://127.0.0.1:8080/xwiki/bin/save/Test/Attachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:Test.Attachment] which contains [1] classes. 
++2012-03-17 02:30:32,029 [http://127.0.0.1:8080/xwiki/bin/save/Test/Attachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++Test.Attachment has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:33,116 [http://127.0.0.1:8080/xwiki/bin/upload/XWiki/XWikiPreferences?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:33,116 [http://127.0.0.1:8080/xwiki/bin/upload/XWiki/XWikiPreferences?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] was defined in the codebase. 
++2012-03-17 02:30:33,116 [http://127.0.0.1:8080/xwiki/bin/upload/XWiki/XWikiPreferences?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.XWikiPreferences] which contains [3] classes. 
++2012-03-17 02:30:33,116 [http://127.0.0.1:8080/xwiki/bin/upload/XWiki/XWikiPreferences?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++2012-03-17 02:30:33,119 [http://127.0.0.1:8080/xwiki/bin/upload/XWiki/XWikiPreferences?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] bytecode length [0]. 
++2012-03-17 02:30:33,214 [http://127.0.0.1:8080/xwiki/bin/import/XWiki/XWikiPreferences?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] WARN  c.x.x.w.XWikiAction            - Uncaught exception: Error number 11015 in 11: Exception while importing
++Wrapped Exception: Error number 3002 in 3: Unable to load attachment content
++Wrapped Exception: Failure in onPreRun()
++Caused by:
++java.lang.NullPointerException
++	null
++ 
++com.xpn.xwiki.XWikiException: Error number 11015 in 11: Exception while importing
++Wrapped Exception: Error number 3002 in 3: Unable to load attachment content
++Wrapped Exception: Failure in onPreRun()
++Caused by:
++java.lang.NullPointerException
++	null
++
++	at com.xpn.xwiki.web.ImportAction.render(ImportAction.java:149) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:231) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:116) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at org.apache.struts.action.RequestProcessor.processActionPerform(RequestProcessor.java:431) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.RequestProcessor.process(RequestProcessor.java:236) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.ActionServlet.process(ActionServlet.java:1196) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.ActionServlet.doPost(ActionServlet.java:432) [struts-1.2.9.jar:1.2.9]
++	at javax.servlet.http.HttpServlet.service(HttpServlet.java:727) [servlet-api-2.5.jar:2.5]
++	at javax.servlet.http.HttpServlet.service(HttpServlet.java:820) [servlet-api-2.5.jar:2.5]
++	at org.eclipse.jetty.servlet.ServletHolder.handle(ServletHolder.java:538) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1352) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at com.xpn.xwiki.web.ActionFilter.doFilter(ActionFilter.java:128) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.wysiwyg.server.filter.ConversionFilter.doFilter(ConversionFilter.java:144) [xwiki-platform-wysiwyg-server-3.4-SNAPSHOT.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at com.xpn.xwiki.plugin.webdav.XWikiDavFilter.doFilter(XWikiDavFilter.java:68) [xwiki-platform-webdav-server-3.4-20120214.180951-178.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.container.servlet.filters.internal.SavedRequestRestorerFilter.doFilter(SavedRequestRestorerFilter.java:217) [xwiki-platform-container-servlet-3.4-20120214.174014-217.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.container.servlet.filters.internal.SetCharacterEncodingFilter.doFilter(SetCharacterEncodingFilter.java:109) [xwiki-platform-container-servlet-3.4-20120214.174014-217.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler.doHandle(ServletHandler.java:476) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:119) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.security.SecurityHandler.handle(SecurityHandler.java:517) [jetty-security-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.session.SessionHandler.doHandle(SessionHandler.java:225) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandler.doHandle(ContextHandler.java:937) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler.doScope(ServletHandler.java:406) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.session.SessionHandler.doScope(SessionHandler.java:183) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandler.doScope(ContextHandler.java:871) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:117) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandlerCollection.handle(ContextHandlerCollection.java:247) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.HandlerCollection.handle(HandlerCollection.java:149) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.HandlerWrapper.handle(HandlerWrapper.java:110) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.Server.handle(Server.java:346) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection.handleRequest(HttpConnection.java:589) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection$RequestHandler.content(HttpConnection.java:1065) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.http.HttpParser.parseNext(HttpParser.java:823) [jetty-http-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.http.HttpParser.parseAvailable(HttpParser.java:220) [jetty-http-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection.handle(HttpConnection.java:411) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.io.nio.SelectChannelEndPoint.handle(SelectChannelEndPoint.java:535) [jetty-io-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.io.nio.SelectChannelEndPoint$1.run(SelectChannelEndPoint.java:40) [jetty-io-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.util.thread.QueuedThreadPool$3.run(QueuedThreadPool.java:529) [jetty-util-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at java.lang.Thread.run(Thread.java:662) [na:1.6.0_30]
++Caused by: com.xpn.xwiki.XWikiException: Error number 3002 in 3: Unable to load attachment content
++Wrapped Exception: Failure in onPreRun()
++Caused by:
++java.lang.NullPointerException
++	null
++
++	at org.xwiki.store.attachments.adapter.internal.AbstractAttachmentStoreAdapter.loadAttachmentContent(AbstractAttachmentStoreAdapter.java:238) ~[xwiki-platform-store-attachments-3.4-SNAPSHOT.jar:na]
++	at com.xpn.xwiki.doc.XWikiDocument.loadAttachmentContent(XWikiDocument.java:4340) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.doc.XWikiAttachment.getContentInputStream(XWikiAttachment.java:558) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.ImportAction.render(ImportAction.java:84) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	... 42 common frames omitted
++Caused by: org.xwiki.store.TransactionException: Failure in onPreRun()
++Caused by:
++java.lang.NullPointerException
++	null
++
++	at org.xwiki.store.TransactionRunnable.preRun(TransactionRunnable.java:275) ~[xwiki-platform-store-transaction-3.4-SNAPSHOT.jar:na]
++	at org.xwiki.store.StartableTransactionRunnable.start(StartableTransactionRunnable.java:53) ~[xwiki-platform-store-transaction-3.4-SNAPSHOT.jar:na]
++	at org.xwiki.store.attachments.adapter.internal.AbstractAttachmentStoreAdapter.loadAttachmentContent(AbstractAttachmentStoreAdapter.java:236) ~[xwiki-platform-store-attachments-3.4-SNAPSHOT.jar:na]
++	... 45 common frames omitted
++Caused by: java.lang.NullPointerException: null
++	at org.xwiki.store.hibernate.internal.HibernateTransaction.onPreRun(HibernateTransaction.java:82) ~[xwiki-platform-store-hibernate-transaction-3.4-SNAPSHOT.jar:na]
++	at org.xwiki.store.TransactionRunnable.preRun(TransactionRunnable.java:265) ~[xwiki-platform-store-transaction-3.4-SNAPSHOT.jar:na]
++	... 47 common frames omitted
++2012-03-17 02:30:33,445 [http://127.0.0.1:8080/xwiki/bin/import/XWiki/XWikiPreferences?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] WARN  o.x.v.i.DefaultVelocityEngine  - Deprecated usage of method [com.xpn.xwiki.api.XWiki.parseMessage] in /templates/exceptioninline.vm@1,24 
++2012-03-17 02:30:34,299 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterDeleteAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:34,299 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterDeleteAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:Test.testRollbackAfterDeleteAttachment] which contains [1] classes. 
++2012-03-17 02:30:34,299 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterDeleteAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++Test.testRollbackAfterDeleteAttachment has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:34,362 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterDeleteAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:34,362 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterDeleteAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] was defined in the codebase. 
++2012-03-17 02:30:34,362 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterDeleteAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:Test.testRollbackAfterDeleteAttachment] which contains [2] classes. 
++2012-03-17 02:30:34,363 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterDeleteAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++2012-03-17 02:30:34,366 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterDeleteAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] bytecode length [0]. 
++2012-03-17 02:30:35,074 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterNewAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:35,074 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterNewAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:Test.testRollbackAfterNewAttachment] which contains [1] classes. 
++2012-03-17 02:30:35,074 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterNewAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++Test.testRollbackAfterNewAttachment has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:35,129 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterNewAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:35,129 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterNewAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] was defined in the codebase. 
++2012-03-17 02:30:35,129 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterNewAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:Test.testRollbackAfterNewAttachment] which contains [2] classes. 
++2012-03-17 02:30:35,129 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterNewAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++2012-03-17 02:30:35,132 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterNewAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] bytecode length [0]. 
++2012-03-17 02:30:35,768 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterUpdateOfAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:35,768 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterUpdateOfAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:Test.testRollbackAfterUpdateOfAttachment] which contains [1] classes. 
++2012-03-17 02:30:35,768 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterUpdateOfAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++Test.testRollbackAfterUpdateOfAttachment has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:35,808 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterUpdateOfAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] was defined in the codebase. 
++2012-03-17 02:30:35,808 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterUpdateOfAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:35,808 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterUpdateOfAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:Test.testRollbackAfterUpdateOfAttachment] which contains [2] classes. 
++2012-03-17 02:30:35,808 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterUpdateOfAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] bytecode length [0]. 
++2012-03-17 02:30:35,811 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterUpdateOfAttachment?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++2012-03-17 02:30:36,403 [http://127.0.0.1:8080/xwiki/bin/save/Test/testAttachmentContentDirty?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:36,404 [http://127.0.0.1:8080/xwiki/bin/save/Test/testAttachmentContentDirty?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:Test.testAttachmentContentDirty] which contains [1] classes. 
++2012-03-17 02:30:36,404 [http://127.0.0.1:8080/xwiki/bin/save/Test/testAttachmentContentDirty?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++Test.testAttachmentContentDirty has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:36,907 [http://127.0.0.1:8080/xwiki/bin/save/DocumentTest/testRollback?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:36,907 [http://127.0.0.1:8080/xwiki/bin/save/DocumentTest/testRollback?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:DocumentTest.testRollback] which contains [1] classes. 
++2012-03-17 02:30:36,907 [http://127.0.0.1:8080/xwiki/bin/save/DocumentTest/testRollback?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++2012-03-17 02:30:36,909 [MutationStage:22] WARN  o.a.c.d.Memtable               - MemoryMeter uninitialized (jamm not specified as java agent); assuming liveRatio of 10.0.  Usually this means cassandra-env.sh disabled jamm because you are using a buggy JRE; upgrade to the Sun JRE instead 
++2012-03-17 02:30:36,919 [MutationStage:23] WARN  o.a.c.d.Memtable               - MemoryMeter uninitialized (jamm not specified as java agent); assuming liveRatio of 10.0.  Usually this means cassandra-env.sh disabled jamm because you are using a buggy JRE; upgrade to the Sun JRE instead 
++2012-03-17 02:30:36,920 [MutationStage:23] WARN  o.a.c.d.Memtable               - MemoryMeter uninitialized (jamm not specified as java agent); assuming liveRatio of 10.0.  Usually this means cassandra-env.sh disabled jamm because you are using a buggy JRE; upgrade to the Sun JRE instead 
++
++
++
++
++
++
++
++DocumentTest.testRollback has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:36,958 [http://127.0.0.1:8080/xwiki/bin/save/DocumentTest/testRollback?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:36,958 [http://127.0.0.1:8080/xwiki/bin/save/DocumentTest/testRollback?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:DocumentTest.testRollback] which contains [1] classes. 
++2012-03-17 02:30:36,958 [http://127.0.0.1:8080/xwiki/bin/save/DocumentTest/testRollback?form_token=3R0xi2wjMxKqmK0QFuUW8w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++DocumentTest.testRollback has no attachments right?
++
++
++
++
++
++2012-03-17 02:30:37,078 [http://127.0.0.1:8080/xwiki/bin/rollback/DocumentTest/testRollback?form_token=3R0xi2wjMxKqmK0QFuUW8w&rev=1.1&confirm=1&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:30:37,078 [http://127.0.0.1:8080/xwiki/bin/rollback/DocumentTest/testRollback?form_token=3R0xi2wjMxKqmK0QFuUW8w&rev=1.1&confirm=1&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:DocumentTest.testRollback] which contains [1] classes. 
++2012-03-17 02:30:37,078 [http://127.0.0.1:8080/xwiki/bin/rollback/DocumentTest/testRollback?form_token=3R0xi2wjMxKqmK0QFuUW8w&rev=1.1&confirm=1&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++DocumentTest.testRollback has no attachments right?
++
++
++
++
++
++The command attribute is deprecated.
++Please use the executable attribute and nested arg elements.
++Current OS is Linux
++Executing 'sh' with arguments:
++'-f'
++'stop_xwiki.sh'
++'8079'
++
++The ' characters around the executable and arguments are
++not part of the command.
++2012-03-17 02:30:37.349:INFO::Graceful shutdown SelectChannelConnector@0.0.0.0:8080 STARTED
++2012-03-17 02:30:37.349:INFO::Graceful shutdown o.e.j.w.WebAppContext{/xwiki,file:/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/webapps/xwiki/},/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/../webapps/xwiki
++2012-03-17 02:30:37.349:INFO::Graceful shutdown o.e.j.w.WebAppContext{/,file:/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/webapps/root/},/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/../webapps/root
++2012-03-17 02:30:38.378:INFO::stopped o.e.j.w.WebAppContext{/,file:/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/webapps/root/},/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/../webapps/root
++2012-03-17 02:30:38.389:INFO::stopped o.e.j.w.WebAppContext{/xwiki,file:/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/webapps/xwiki/},/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/../webapps/xwiki
++XWiki server stopped
++Starting XWiki server start
++Checking that XWiki is up and running...
++Could not load definitions from resource org/apache/tools/ant/antlib.xml. It could not be found.
++The command attribute is deprecated.
++Please use the executable attribute and nested arg elements.
++Current OS is Linux
++Executing 'sh' with arguments:
++'-f'
++'start_xwiki.sh'
++'8080'
++'8079'
++
++The ' characters around the executable and arguments are
++not part of the command.
++Starting Jetty on port 8080 ...
++Logs are in the ./xwiki.log file
++2012-03-17 02:30:54.446:INFO::jetty-7.4.5.v20110725
++2012-03-17 02:30:54.472:INFO::Opened /home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/logs/2012_03_17.request.log
++2012-03-17 02:30:54.482:INFO::Deployment monitor /home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/contexts at interval 1
++2012-03-17 02:30:54.494:INFO::Deployable added: /home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/contexts/xwiki.xml
++2012-03-17 02:31:00.488:INFO::NO JSP Support for /xwiki, did not find org.apache.jasper.servlet.JspServlet
++2012-03-17 02:31:03.871:INFO::started o.e.j.w.WebAppContext{/xwiki,file:/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/webapps/xwiki/},/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/../webapps/xwiki
++2012-03-17 02:31:04.306:INFO::Deployable added: /home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/contexts/root.xml
++2012-03-17 02:31:04.324:INFO::NO JSP Support for /, did not find org.apache.jasper.servlet.JspServlet
++2012-03-17 02:31:04.328:INFO::started o.e.j.w.WebAppContext{/,file:/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/webapps/root/},/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/../webapps/root
++2012-03-17 02:31:04.352:INFO::Started SelectChannelConnector@0.0.0.0:8080 STARTING
++2012-03-17 02:31:06,139 [MutationStage:30] WARN  o.a.c.d.Memtable               - MemoryMeter uninitialized (jamm not specified as java agent); assuming liveRatio of 10.0.  Usually this means cassandra-env.sh disabled jamm because you are using a buggy JRE; upgrade to the Sun JRE instead 
++2012-03-17 02:31:10,590 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  o.s.c.p.p.CommonsBackedPool    - The thrift timeout value (10000ms) is greater than the pools maxWaitForConnection value (4000ms).  This could lead to errors when a node is down.  As a general rule the pools maxWaitForConnection should be three times larger than the thrift timeout value. 
++Storing: getWikiMacroDocuments  
++      SELECT space, name, author
++        FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument
++        WHERE objects.contains(obj)
++          && obj instanceof xwiki.XWiki.WikiMacroClass
++    
++Storing: getWatchlistJobDocuments  
++      SELECT fullName
++        FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument
++        WHERE objects.contains(obj)
++          && obj instanceof xwiki.XWiki.WatchListJob
++    
++Storing: getTranslationList  
++      SELECT language
++        FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument
++        WHERE wiki == :wiki
++          && fullName == :fullname
++    
++Storing: listGroupsForUser  
++      SELECT DISTINCT fullName
++        FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument
++        WHERE objects.contains(obj)
++        && (
++          obj.member == :username
++          || obj.member == :shortname
++          || obj.member == :veryshortname
++        )
++        VARIABLES xwiki.XWiki.XWikiGroups obj
++    
++Storing: getSpaces  
++      SELECT DISTINCT space
++        FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument
++    
++Storing: $staticClassInfo  org.codehaus.groovy.reflection.ClassInfo@4d91e365
++Storing: __$stMC  false
++Storing: metaClass  groovy.lang.MetaClassImpl@47e0422[class DataNucleusNamedQueries]
++Storing: __timeStamp  1331965871334
++Storing: __timeStamp__239_neverHappen1331965871334  0
++Storing: $callSiteArray  java.lang.ref.SoftReference@5c94dd46
++Storing: $class$java$lang$String  null
++Storing: $class$DataNucleusNamedQueries  class DataNucleusNamedQueries
++2012-03-17 02:31:12,927 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  o.i.m.DefaultCacheManager      - ISPN000156: You are not starting all your caches at the same time. This can lead to problems as asymmetric clusters are not supported, see ISPN-658. We recommend using EmbeddedCacheManager.startCaches() to start all your caches upfront. 
++2012-03-17 02:31:14,108 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  o.i.m.DefaultCacheManager      - ISPN000156: You are not starting all your caches at the same time. This can lead to problems as asymmetric clusters are not supported, see ISPN-658. We recommend using EmbeddedCacheManager.startCaches() to start all your caches upfront. 
++
++
++
++
++
++
++
++XWiki.JavaScriptExtension has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.StyleSheetExtension has no attachments right?
++
++
++
++
++
++2012-03-17 02:31:14,245 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  o.i.m.DefaultCacheManager      - ISPN000156: You are not starting all your caches at the same time. This can lead to problems as asymmetric clusters are not supported, see ISPN-658. We recommend using EmbeddedCacheManager.startCaches() to start all your caches upfront. 
++
++
++
++
++
++
++
++XWiki.AggregatorURLClass has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.FeedEntryClass has no attachments right?
++
++
++
++
++
++2012-03-17 02:31:14,414 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  o.i.m.DefaultCacheManager      - ISPN000156: You are not starting all your caches at the same time. This can lead to problems as asymmetric clusters are not supported, see ISPN-658. We recommend using EmbeddedCacheManager.startCaches() to start all your caches upfront. 
++
++
++
++
++
++
++
++XWiki.SchedulerJobClass has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.Mail has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.XWikiUsers has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.TagClass has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.XWikiGroups has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.XWikiRights has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.XWikiComments has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.XWikiSkins has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.XWikiGlobalRights has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.SheetClass has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.EditModeClass has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.WikiMacroClass has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++XWiki.WikiMacroParameterClass has no attachments right?
++
++
++
++
++
++2012-03-17 02:31:16,042 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] ERROR D.Query                        - Cannot find objects member of xwiki.XWiki.DocumentSheetBinding 
++2012-03-17 02:31:16,045 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  D.Query                        - Query contains call to method org.datanucleus.query.evaluator.memory.InMemoryFailure.contains yet no support is available for this 
++2012-03-17 02:31:16,054 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  .m.DefaultWikiMacroInitializer - Failed to register macros for wiki [xwiki]: Failed to run javax.jdo.query.JDOQL query with statement: [
++      SELECT space, name, author
++        FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument
++        WHERE objects.contains(obj)
++          && obj instanceof xwiki.XWiki.WikiMacroClass
++    ]. Query statement = [getWikiMacroDocuments] 
++2012-03-17 02:31:16,299 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  o.i.m.DefaultCacheManager      - ISPN000156: You are not starting all your caches at the same time. This can lead to problems as asymmetric clusters are not supported, see ISPN-658. We recommend using EmbeddedCacheManager.startCaches() to start all your caches upfront. 
++2012-03-17 02:31:17,065 [http://localhost:8080/xwiki/bin/view/Main?xpage=plain] WARN  m.i.DefaultJMXBeanRegistration - Failed to register resource with name [type=Velocity,domain=Engines,name=default]. Reason = [org.xwiki:type=Velocity,domain=Engines,name=default] 
++Server is answering to [http://localhost:8080/xwiki/bin/view/Main?xpage=plain]... cool
++
++
++
++
++
++
++
++Test.Attachment has no attachments right?
++
++
++
++
++
++2012-03-17 02:31:18,688 [http://127.0.0.1:8080/xwiki/bin/delete/Test/Attachment?form_token=tEmvxtRNxSAw0q6pptji6w&confirm=1&basicauth=1] WARN  c.x.x.w.XWikiAction            - Uncaught exception: Error number 0 in 11: Uncaught exception
++Wrapped Exception: not implemented 
++com.xpn.xwiki.XWikiException: Error number 0 in 11: Uncaught exception
++Wrapped Exception: not implemented
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:254) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:116) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at org.apache.struts.action.RequestProcessor.processActionPerform(RequestProcessor.java:431) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.RequestProcessor.process(RequestProcessor.java:236) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.ActionServlet.process(ActionServlet.java:1196) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.ActionServlet.doPost(ActionServlet.java:432) [struts-1.2.9.jar:1.2.9]
++	at javax.servlet.http.HttpServlet.service(HttpServlet.java:727) [servlet-api-2.5.jar:2.5]
++	at javax.servlet.http.HttpServlet.service(HttpServlet.java:820) [servlet-api-2.5.jar:2.5]
++	at org.eclipse.jetty.servlet.ServletHolder.handle(ServletHolder.java:538) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1352) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at com.xpn.xwiki.web.ActionFilter.doFilter(ActionFilter.java:128) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.wysiwyg.server.filter.ConversionFilter.doFilter(ConversionFilter.java:144) [xwiki-platform-wysiwyg-server-3.4-SNAPSHOT.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at com.xpn.xwiki.plugin.webdav.XWikiDavFilter.doFilter(XWikiDavFilter.java:68) [xwiki-platform-webdav-server-3.4-20120214.180951-178.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.container.servlet.filters.internal.SavedRequestRestorerFilter.doFilter(SavedRequestRestorerFilter.java:217) [xwiki-platform-container-servlet-3.4-20120214.174014-217.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.container.servlet.filters.internal.SetCharacterEncodingFilter.doFilter(SetCharacterEncodingFilter.java:109) [xwiki-platform-container-servlet-3.4-20120214.174014-217.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler.doHandle(ServletHandler.java:476) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:119) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.security.SecurityHandler.handle(SecurityHandler.java:517) [jetty-security-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.session.SessionHandler.doHandle(SessionHandler.java:225) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandler.doHandle(ContextHandler.java:937) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler.doScope(ServletHandler.java:406) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.session.SessionHandler.doScope(SessionHandler.java:183) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandler.doScope(ContextHandler.java:871) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:117) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandlerCollection.handle(ContextHandlerCollection.java:247) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.HandlerCollection.handle(HandlerCollection.java:149) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.HandlerWrapper.handle(HandlerWrapper.java:110) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.Server.handle(Server.java:346) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection.handleRequest(HttpConnection.java:589) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection$RequestHandler.headerComplete(HttpConnection.java:1048) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.http.HttpParser.parseNext(HttpParser.java:601) [jetty-http-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.http.HttpParser.parseAvailable(HttpParser.java:214) [jetty-http-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection.handle(HttpConnection.java:411) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.io.nio.SelectChannelEndPoint.handle(SelectChannelEndPoint.java:535) [jetty-io-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.io.nio.SelectChannelEndPoint$1.run(SelectChannelEndPoint.java:40) [jetty-io-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.util.thread.QueuedThreadPool$3.run(QueuedThreadPool.java:529) [jetty-util-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at java.lang.Thread.run(Thread.java:662) [na:1.6.0_30]
++Caused by: java.lang.RuntimeException: not implemented
++	at com.xpn.xwiki.store.datanucleus.DataNucleusXWikiDocumentStore.deleteXWikiDoc(DataNucleusXWikiDocumentStore.java:133) ~[xwiki-platform-store-datanucleus-3.4-SNAPSHOT.jar:na]
++	at com.xpn.xwiki.store.datanucleus.DataNucleusStore.deleteXWikiDoc(DataNucleusStore.java:156) ~[xwiki-platform-store-datanucleus-3.4-SNAPSHOT.jar:na]
++	at com.xpn.xwiki.store.XWikiCacheStore.deleteXWikiDoc(XWikiCacheStore.java:304) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteDocument(XWiki.java:4277) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteDocument(XWiki.java:4260) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteAllDocuments(XWiki.java:6152) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteAllDocuments(XWiki.java:6141) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.DeleteAction.action(DeleteAction.java:93) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:230) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	... 41 common frames omitted
++2012-03-17 02:31:18,925 [http://127.0.0.1:8080/xwiki/bin/delete/Test/Attachment?form_token=tEmvxtRNxSAw0q6pptji6w&confirm=1&basicauth=1] WARN  o.x.v.i.DefaultVelocityEngine  - Deprecated usage of method [com.xpn.xwiki.api.XWiki.parseMessage] in /templates/exceptioninline.vm@1,24 
++2012-03-17 02:31:18,983 [http://127.0.0.1:8080/xwiki/bin/save/Test/Attachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:31:18,983 [http://127.0.0.1:8080/xwiki/bin/save/Test/Attachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:Test.Attachment] which contains [1] classes. 
++2012-03-17 02:31:18,984 [http://127.0.0.1:8080/xwiki/bin/save/Test/Attachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++2012-03-17 02:31:19,008 [MutationStage:1] WARN  o.a.c.d.Memtable               - MemoryMeter uninitialized (jamm not specified as java agent); assuming liveRatio of 10.0.  Usually this means cassandra-env.sh disabled jamm because you are using a buggy JRE; upgrade to the Sun JRE instead 
++2012-03-17 02:31:19,008 [MutationStage:1] WARN  o.a.c.d.Memtable               - MemoryMeter uninitialized (jamm not specified as java agent); assuming liveRatio of 10.0.  Usually this means cassandra-env.sh disabled jamm because you are using a buggy JRE; upgrade to the Sun JRE instead 
++
++
++
++
++
++
++
++Test.Attachment has no attachments right?
++
++
++
++
++
++
++
++A baseobject was null!
++
++
++2012-03-17 02:31:20,090 [http://127.0.0.1:8080/xwiki/bin/upload/XWiki/XWikiPreferences?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:31:20,090 [http://127.0.0.1:8080/xwiki/bin/upload/XWiki/XWikiPreferences?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] was defined in the codebase. 
++2012-03-17 02:31:20,090 [http://127.0.0.1:8080/xwiki/bin/upload/XWiki/XWikiPreferences?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:XWiki.XWikiPreferences] which contains [3] classes. 
++2012-03-17 02:31:20,091 [http://127.0.0.1:8080/xwiki/bin/upload/XWiki/XWikiPreferences?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [xwiki.XWiki.ClassSheetBinding] bytecode length [14895]. 
++2012-03-17 02:31:20,091 [http://127.0.0.1:8080/xwiki/bin/upload/XWiki/XWikiPreferences?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] bytecode length [0]. 
++2012-03-17 02:31:20,094 [http://127.0.0.1:8080/xwiki/bin/upload/XWiki/XWikiPreferences?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++2012-03-17 02:31:20,218 [http://127.0.0.1:8080/xwiki/bin/import/XWiki/XWikiPreferences?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] WARN  c.x.x.w.XWikiAction            - Uncaught exception: Error number 11015 in 11: Exception while importing
++Wrapped Exception: Error number 3002 in 3: Unable to load attachment content
++Wrapped Exception: Failure in onPreRun()
++Caused by:
++java.lang.NullPointerException
++	null
++ 
++com.xpn.xwiki.XWikiException: Error number 11015 in 11: Exception while importing
++Wrapped Exception: Error number 3002 in 3: Unable to load attachment content
++Wrapped Exception: Failure in onPreRun()
++Caused by:
++java.lang.NullPointerException
++	null
++
++	at com.xpn.xwiki.web.ImportAction.render(ImportAction.java:149) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:231) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:116) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at org.apache.struts.action.RequestProcessor.processActionPerform(RequestProcessor.java:431) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.RequestProcessor.process(RequestProcessor.java:236) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.ActionServlet.process(ActionServlet.java:1196) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.ActionServlet.doPost(ActionServlet.java:432) [struts-1.2.9.jar:1.2.9]
++	at javax.servlet.http.HttpServlet.service(HttpServlet.java:727) [servlet-api-2.5.jar:2.5]
++	at javax.servlet.http.HttpServlet.service(HttpServlet.java:820) [servlet-api-2.5.jar:2.5]
++	at org.eclipse.jetty.servlet.ServletHolder.handle(ServletHolder.java:538) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1352) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at com.xpn.xwiki.web.ActionFilter.doFilter(ActionFilter.java:128) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.wysiwyg.server.filter.ConversionFilter.doFilter(ConversionFilter.java:144) [xwiki-platform-wysiwyg-server-3.4-SNAPSHOT.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at com.xpn.xwiki.plugin.webdav.XWikiDavFilter.doFilter(XWikiDavFilter.java:68) [xwiki-platform-webdav-server-3.4-20120214.180951-178.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.container.servlet.filters.internal.SavedRequestRestorerFilter.doFilter(SavedRequestRestorerFilter.java:217) [xwiki-platform-container-servlet-3.4-20120214.174014-217.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.container.servlet.filters.internal.SetCharacterEncodingFilter.doFilter(SetCharacterEncodingFilter.java:109) [xwiki-platform-container-servlet-3.4-20120214.174014-217.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler.doHandle(ServletHandler.java:476) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:119) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.security.SecurityHandler.handle(SecurityHandler.java:517) [jetty-security-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.session.SessionHandler.doHandle(SessionHandler.java:225) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandler.doHandle(ContextHandler.java:937) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler.doScope(ServletHandler.java:406) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.session.SessionHandler.doScope(SessionHandler.java:183) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandler.doScope(ContextHandler.java:871) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:117) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandlerCollection.handle(ContextHandlerCollection.java:247) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.HandlerCollection.handle(HandlerCollection.java:149) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.HandlerWrapper.handle(HandlerWrapper.java:110) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.Server.handle(Server.java:346) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection.handleRequest(HttpConnection.java:589) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection$RequestHandler.content(HttpConnection.java:1065) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.http.HttpParser.parseNext(HttpParser.java:823) [jetty-http-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.http.HttpParser.parseAvailable(HttpParser.java:220) [jetty-http-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection.handle(HttpConnection.java:411) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.io.nio.SelectChannelEndPoint.handle(SelectChannelEndPoint.java:535) [jetty-io-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.io.nio.SelectChannelEndPoint$1.run(SelectChannelEndPoint.java:40) [jetty-io-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.util.thread.QueuedThreadPool$3.run(QueuedThreadPool.java:529) [jetty-util-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at java.lang.Thread.run(Thread.java:662) [na:1.6.0_30]
++Caused by: com.xpn.xwiki.XWikiException: Error number 3002 in 3: Unable to load attachment content
++Wrapped Exception: Failure in onPreRun()
++Caused by:
++java.lang.NullPointerException
++	null
++
++	at org.xwiki.store.attachments.adapter.internal.AbstractAttachmentStoreAdapter.loadAttachmentContent(AbstractAttachmentStoreAdapter.java:238) ~[xwiki-platform-store-attachments-3.4-SNAPSHOT.jar:na]
++	at com.xpn.xwiki.doc.XWikiDocument.loadAttachmentContent(XWikiDocument.java:4340) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.doc.XWikiAttachment.getContentInputStream(XWikiAttachment.java:558) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.ImportAction.render(ImportAction.java:84) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	... 42 common frames omitted
++Caused by: org.xwiki.store.TransactionException: Failure in onPreRun()
++Caused by:
++java.lang.NullPointerException
++	null
++
++	at org.xwiki.store.TransactionRunnable.preRun(TransactionRunnable.java:275) ~[xwiki-platform-store-transaction-3.4-SNAPSHOT.jar:na]
++	at org.xwiki.store.StartableTransactionRunnable.start(StartableTransactionRunnable.java:53) ~[xwiki-platform-store-transaction-3.4-SNAPSHOT.jar:na]
++	at org.xwiki.store.attachments.adapter.internal.AbstractAttachmentStoreAdapter.loadAttachmentContent(AbstractAttachmentStoreAdapter.java:236) ~[xwiki-platform-store-attachments-3.4-SNAPSHOT.jar:na]
++	... 45 common frames omitted
++Caused by: java.lang.NullPointerException: null
++	at org.xwiki.store.hibernate.internal.HibernateTransaction.onPreRun(HibernateTransaction.java:82) ~[xwiki-platform-store-hibernate-transaction-3.4-SNAPSHOT.jar:na]
++	at org.xwiki.store.TransactionRunnable.preRun(TransactionRunnable.java:265) ~[xwiki-platform-store-transaction-3.4-SNAPSHOT.jar:na]
++	... 47 common frames omitted
++2012-03-17 02:31:20,397 [http://127.0.0.1:8080/xwiki/bin/import/XWiki/XWikiPreferences?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] WARN  o.x.v.i.DefaultVelocityEngine  - Deprecated usage of method [com.xpn.xwiki.api.XWiki.parseMessage] in /templates/exceptioninline.vm@1,24 
++2012-03-17 02:31:20,888 [http://127.0.0.1:8080/xwiki/bin/delete/Test/testRollbackAfterDeleteAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&confirm=1&basicauth=1] WARN  c.x.x.w.XWikiAction            - Uncaught exception: Error number 0 in 11: Uncaught exception
++Wrapped Exception: not implemented 
++com.xpn.xwiki.XWikiException: Error number 0 in 11: Uncaught exception
++Wrapped Exception: not implemented
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:254) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:116) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at org.apache.struts.action.RequestProcessor.processActionPerform(RequestProcessor.java:431) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.RequestProcessor.process(RequestProcessor.java:236) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.ActionServlet.process(ActionServlet.java:1196) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.ActionServlet.doPost(ActionServlet.java:432) [struts-1.2.9.jar:1.2.9]
++	at javax.servlet.http.HttpServlet.service(HttpServlet.java:727) [servlet-api-2.5.jar:2.5]
++	at javax.servlet.http.HttpServlet.service(HttpServlet.java:820) [servlet-api-2.5.jar:2.5]
++	at org.eclipse.jetty.servlet.ServletHolder.handle(ServletHolder.java:538) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1352) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at com.xpn.xwiki.web.ActionFilter.doFilter(ActionFilter.java:128) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.wysiwyg.server.filter.ConversionFilter.doFilter(ConversionFilter.java:144) [xwiki-platform-wysiwyg-server-3.4-SNAPSHOT.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at com.xpn.xwiki.plugin.webdav.XWikiDavFilter.doFilter(XWikiDavFilter.java:68) [xwiki-platform-webdav-server-3.4-20120214.180951-178.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.container.servlet.filters.internal.SavedRequestRestorerFilter.doFilter(SavedRequestRestorerFilter.java:217) [xwiki-platform-container-servlet-3.4-20120214.174014-217.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.container.servlet.filters.internal.SetCharacterEncodingFilter.doFilter(SetCharacterEncodingFilter.java:109) [xwiki-platform-container-servlet-3.4-20120214.174014-217.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler.doHandle(ServletHandler.java:476) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:119) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.security.SecurityHandler.handle(SecurityHandler.java:517) [jetty-security-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.session.SessionHandler.doHandle(SessionHandler.java:225) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandler.doHandle(ContextHandler.java:937) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler.doScope(ServletHandler.java:406) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.session.SessionHandler.doScope(SessionHandler.java:183) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandler.doScope(ContextHandler.java:871) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:117) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandlerCollection.handle(ContextHandlerCollection.java:247) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.HandlerCollection.handle(HandlerCollection.java:149) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.HandlerWrapper.handle(HandlerWrapper.java:110) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.Server.handle(Server.java:346) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection.handleRequest(HttpConnection.java:589) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection$RequestHandler.headerComplete(HttpConnection.java:1048) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.http.HttpParser.parseNext(HttpParser.java:601) [jetty-http-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.http.HttpParser.parseAvailable(HttpParser.java:214) [jetty-http-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection.handle(HttpConnection.java:411) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.io.nio.SelectChannelEndPoint.handle(SelectChannelEndPoint.java:535) [jetty-io-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.io.nio.SelectChannelEndPoint$1.run(SelectChannelEndPoint.java:40) [jetty-io-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.util.thread.QueuedThreadPool$3.run(QueuedThreadPool.java:529) [jetty-util-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at java.lang.Thread.run(Thread.java:662) [na:1.6.0_30]
++Caused by: java.lang.RuntimeException: not implemented
++	at com.xpn.xwiki.store.datanucleus.DataNucleusXWikiDocumentStore.deleteXWikiDoc(DataNucleusXWikiDocumentStore.java:133) ~[xwiki-platform-store-datanucleus-3.4-SNAPSHOT.jar:na]
++	at com.xpn.xwiki.store.datanucleus.DataNucleusStore.deleteXWikiDoc(DataNucleusStore.java:156) ~[xwiki-platform-store-datanucleus-3.4-SNAPSHOT.jar:na]
++	at com.xpn.xwiki.store.XWikiCacheStore.deleteXWikiDoc(XWikiCacheStore.java:304) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteDocument(XWiki.java:4277) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteDocument(XWiki.java:4260) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteAllDocuments(XWiki.java:6152) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteAllDocuments(XWiki.java:6141) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.DeleteAction.action(DeleteAction.java:93) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:230) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	... 41 common frames omitted
++2012-03-17 02:31:21,040 [http://127.0.0.1:8080/xwiki/bin/delete/Test/testRollbackAfterDeleteAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&confirm=1&basicauth=1] WARN  o.x.v.i.DefaultVelocityEngine  - Deprecated usage of method [com.xpn.xwiki.api.XWiki.parseMessage] in /templates/exceptioninline.vm@1,24 
++2012-03-17 02:31:21,073 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterDeleteAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:31:21,074 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterDeleteAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] was defined in the codebase. 
++2012-03-17 02:31:21,074 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterDeleteAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:Test.testRollbackAfterDeleteAttachment] which contains [2] classes. 
++2012-03-17 02:31:21,074 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterDeleteAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] bytecode length [0]. 
++2012-03-17 02:31:21,078 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterDeleteAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++2012-03-17 02:31:21,152 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterDeleteAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:31:21,152 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterDeleteAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] was defined in the codebase. 
++2012-03-17 02:31:21,152 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterDeleteAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:Test.testRollbackAfterDeleteAttachment] which contains [2] classes. 
++2012-03-17 02:31:21,153 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterDeleteAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] bytecode length [0]. 
++2012-03-17 02:31:21,156 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterDeleteAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++org.xwiki.velocity.XWikiVelocityException: Failed to evaluate content with id [/templates/delete.vm]
++	at org.xwiki.velocity.internal.DefaultVelocityEngine.evaluate(DefaultVelocityEngine.java:247)
++	at org.xwiki.velocity.internal.DefaultVelocityEngine.evaluate(DefaultVelocityEngine.java:184)
++	at com.xpn.xwiki.render.XWikiVelocityRenderer.evaluate(XWikiVelocityRenderer.java:117)
++	at com.xpn.xwiki.XWiki.evaluateTemplate(XWiki.java:1791)
++	at com.xpn.xwiki.web.Utils.parseTemplate(Utils.java:154)
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:241)
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:116)
++	at org.apache.struts.action.RequestProcessor.processActionPerform(RequestProcessor.java:431)
++	at org.apache.struts.action.RequestProcessor.process(RequestProcessor.java:236)
++	at org.apache.struts.action.ActionServlet.process(ActionServlet.java:1196)
++	at org.apache.struts.action.ActionServlet.doPost(ActionServlet.java:432)
++	at javax.servlet.http.HttpServlet.service(HttpServlet.java:727)
++	at javax.servlet.http.HttpServlet.service(HttpServlet.java:820)
++	at org.eclipse.jetty.servlet.ServletHolder.handle(ServletHolder.java:538)
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1352)
++	at com.xpn.xwiki.web.ActionFilter.doFilter(ActionFilter.java:128)
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323)
++	at org.xwiki.wysiwyg.server.filter.ConversionFilter.doFilter(ConversionFilter.java:144)
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323)
++	at com.xpn.xwiki.plugin.webdav.XWikiDavFilter.doFilter(XWikiDavFilter.java:68)
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323)
++	at org.xwiki.container.servlet.filters.internal.SavedRequestRestorerFilter.doFilter(SavedRequestRestorerFilter.java:217)
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323)
++	at org.xwiki.container.servlet.filters.internal.SetCharacterEncodingFilter.doFilter(SetCharacterEncodingFilter.java:109)
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323)
++	at org.eclipse.jetty.servlet.ServletHandler.doHandle(ServletHandler.java:476)
++	at org.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:119)
++	at org.eclipse.jetty.security.SecurityHandler.handle(SecurityHandler.java:517)
++	at org.eclipse.jetty.server.session.SessionHandler.doHandle(SessionHandler.java:225)
++	at org.eclipse.jetty.server.handler.ContextHandler.doHandle(ContextHandler.java:937)
++	at org.eclipse.jetty.servlet.ServletHandler.doScope(ServletHandler.java:406)
++	at org.eclipse.jetty.server.session.SessionHandler.doScope(SessionHandler.java:183)
++	at org.eclipse.jetty.server.handler.ContextHandler.doScope(ContextHandler.java:871)
++	at org.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:117)
++	at org.eclipse.jetty.server.handler.ContextHandlerCollection.handle(ContextHandlerCollection.java:247)
++	at org.eclipse.jetty.server.handler.HandlerCollection.handle(HandlerCollection.java:149)
++	at org.eclipse.jetty.server.handler.HandlerWrapper.handle(HandlerWrapper.java:110)
++	at org.eclipse.jetty.server.Server.handle(Server.java:346)
++	at org.eclipse.jetty.server.HttpConnection.handleRequest(HttpConnection.java:589)
++	at org.eclipse.jetty.server.HttpConnection$RequestHandler.headerComplete(HttpConnection.java:1048)
++	at org.eclipse.jetty.http.HttpParser.parseNext(HttpParser.java:601)
++	at org.eclipse.jetty.http.HttpParser.parseAvailable(HttpParser.java:214)
++	at org.eclipse.jetty.server.HttpConnection.handle(HttpConnection.java:411)
++	at org.eclipse.jetty.io.nio.SelectChannelEndPoint.handle(SelectChannelEndPoint.java:535)
++	at org.eclipse.jetty.io.nio.SelectChannelEndPoint$1.run(SelectChannelEndPoint.java:40)
++	at org.eclipse.jetty.util.thread.QueuedThreadPool$3.run(QueuedThreadPool.java:529)
++	at java.lang.Thread.run(Thread.java:662)
++Caused by: org.apache.velocity.exception.MethodInvocationException: Invocation of method 'searchDocuments' in  class com.xpn.xwiki.api.XWiki threw exception java.lang.RuntimeException: not implemented at /templates/delete.vm[line 13, column 24]
++	at org.apache.velocity.runtime.parser.node.ASTMethod.handleInvocationException(ASTMethod.java:243)
++	at org.apache.velocity.runtime.parser.node.ASTMethod.execute(ASTMethod.java:187)
++	at org.apache.velocity.runtime.parser.node.ASTReference.execute(ASTReference.java:280)
++	at org.apache.velocity.runtime.parser.node.ASTReference.value(ASTReference.java:567)
++	at org.apache.velocity.runtime.parser.node.ASTExpression.value(ASTExpression.java:71)
++	at org.apache.velocity.runtime.parser.node.ASTSetDirective.render(ASTSetDirective.java:142)
++	at org.apache.velocity.runtime.parser.node.ASTBlock.render(ASTBlock.java:72)
++	at org.apache.velocity.runtime.parser.node.ASTIfStatement.render(ASTIfStatement.java:87)
++	at org.apache.velocity.runtime.parser.node.SimpleNode.render(SimpleNode.java:342)
++	at org.xwiki.velocity.internal.DefaultVelocityEngine.evaluate(DefaultVelocityEngine.java:228)
++	... 46 more
++Caused by: java.lang.RuntimeException: not implemented
++	at com.xpn.xwiki.store.datanucleus.DataNucleusSearchEngine.searchDocumentsNames(DataNucleusSearchEngine.java:228)
++	at com.xpn.xwiki.store.datanucleus.DataNucleusStore.searchDocumentsNames(DataNucleusStore.java:266)
++	at com.xpn.xwiki.store.XWikiCacheStore.searchDocumentsNames(XWikiCacheStore.java:392)
++	at com.xpn.xwiki.api.XWiki.searchDocuments(XWiki.java:720)
++	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
++	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:39)
++	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:25)
++	at java.lang.reflect.Method.invoke(Method.java:597)
++	at org.apache.velocity.util.introspection.UberspectImpl$VelMethodImpl.doInvoke(UberspectImpl.java:395)
++	at org.apache.velocity.util.introspection.UberspectImpl$VelMethodImpl.invoke(UberspectImpl.java:384)
++	at org.apache.velocity.runtime.parser.node.ASTMethod.execute(ASTMethod.java:173)
++	... 54 more
++2012-03-17 02:31:22,618 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterNewAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:31:22,618 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterNewAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] was defined in the codebase. 
++2012-03-17 02:31:22,618 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterNewAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:Test.testRollbackAfterNewAttachment] which contains [2] classes. 
++2012-03-17 02:31:22,619 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterNewAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++2012-03-17 02:31:23,821 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterNewAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] bytecode length [0]. 
++2012-03-17 02:31:23,899 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterNewAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:31:23,899 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterNewAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] was defined in the codebase. 
++2012-03-17 02:31:23,899 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterNewAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:Test.testRollbackAfterNewAttachment] which contains [2] classes. 
++2012-03-17 02:31:23,899 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterNewAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] bytecode length [0]. 
++2012-03-17 02:31:24,105 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterNewAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++2012-03-17 02:31:24,119 [MutationStage:28] WARN  o.a.c.d.Memtable               - MemoryMeter uninitialized (jamm not specified as java agent); assuming liveRatio of 10.0.  Usually this means cassandra-env.sh disabled jamm because you are using a buggy JRE; upgrade to the Sun JRE instead 
++2012-03-17 02:31:24,605 [http://127.0.0.1:8080/xwiki/bin/delete/Test/testRollbackAfterUpdateOfAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&confirm=1&basicauth=1] WARN  c.x.x.w.XWikiAction            - Uncaught exception: Error number 0 in 11: Uncaught exception
++Wrapped Exception: not implemented 
++com.xpn.xwiki.XWikiException: Error number 0 in 11: Uncaught exception
++Wrapped Exception: not implemented
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:254) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:116) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at org.apache.struts.action.RequestProcessor.processActionPerform(RequestProcessor.java:431) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.RequestProcessor.process(RequestProcessor.java:236) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.ActionServlet.process(ActionServlet.java:1196) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.ActionServlet.doPost(ActionServlet.java:432) [struts-1.2.9.jar:1.2.9]
++	at javax.servlet.http.HttpServlet.service(HttpServlet.java:727) [servlet-api-2.5.jar:2.5]
++	at javax.servlet.http.HttpServlet.service(HttpServlet.java:820) [servlet-api-2.5.jar:2.5]
++	at org.eclipse.jetty.servlet.ServletHolder.handle(ServletHolder.java:538) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1352) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at com.xpn.xwiki.web.ActionFilter.doFilter(ActionFilter.java:128) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.wysiwyg.server.filter.ConversionFilter.doFilter(ConversionFilter.java:144) [xwiki-platform-wysiwyg-server-3.4-SNAPSHOT.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at com.xpn.xwiki.plugin.webdav.XWikiDavFilter.doFilter(XWikiDavFilter.java:68) [xwiki-platform-webdav-server-3.4-20120214.180951-178.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.container.servlet.filters.internal.SavedRequestRestorerFilter.doFilter(SavedRequestRestorerFilter.java:217) [xwiki-platform-container-servlet-3.4-20120214.174014-217.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.container.servlet.filters.internal.SetCharacterEncodingFilter.doFilter(SetCharacterEncodingFilter.java:109) [xwiki-platform-container-servlet-3.4-20120214.174014-217.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler.doHandle(ServletHandler.java:476) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:119) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.security.SecurityHandler.handle(SecurityHandler.java:517) [jetty-security-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.session.SessionHandler.doHandle(SessionHandler.java:225) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandler.doHandle(ContextHandler.java:937) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler.doScope(ServletHandler.java:406) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.session.SessionHandler.doScope(SessionHandler.java:183) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandler.doScope(ContextHandler.java:871) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:117) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandlerCollection.handle(ContextHandlerCollection.java:247) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.HandlerCollection.handle(HandlerCollection.java:149) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.HandlerWrapper.handle(HandlerWrapper.java:110) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.Server.handle(Server.java:346) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection.handleRequest(HttpConnection.java:589) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection$RequestHandler.headerComplete(HttpConnection.java:1048) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.http.HttpParser.parseNext(HttpParser.java:601) [jetty-http-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.http.HttpParser.parseAvailable(HttpParser.java:214) [jetty-http-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection.handle(HttpConnection.java:411) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.io.nio.SelectChannelEndPoint.handle(SelectChannelEndPoint.java:535) [jetty-io-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.io.nio.SelectChannelEndPoint$1.run(SelectChannelEndPoint.java:40) [jetty-io-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.util.thread.QueuedThreadPool$3.run(QueuedThreadPool.java:529) [jetty-util-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at java.lang.Thread.run(Thread.java:662) [na:1.6.0_30]
++Caused by: java.lang.RuntimeException: not implemented
++	at com.xpn.xwiki.store.datanucleus.DataNucleusXWikiDocumentStore.deleteXWikiDoc(DataNucleusXWikiDocumentStore.java:133) ~[xwiki-platform-store-datanucleus-3.4-SNAPSHOT.jar:na]
++	at com.xpn.xwiki.store.datanucleus.DataNucleusStore.deleteXWikiDoc(DataNucleusStore.java:156) ~[xwiki-platform-store-datanucleus-3.4-SNAPSHOT.jar:na]
++	at com.xpn.xwiki.store.XWikiCacheStore.deleteXWikiDoc(XWikiCacheStore.java:304) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteDocument(XWiki.java:4277) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteDocument(XWiki.java:4260) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteAllDocuments(XWiki.java:6152) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteAllDocuments(XWiki.java:6141) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.DeleteAction.action(DeleteAction.java:93) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:230) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	... 41 common frames omitted
++2012-03-17 02:31:24,743 [http://127.0.0.1:8080/xwiki/bin/delete/Test/testRollbackAfterUpdateOfAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&confirm=1&basicauth=1] WARN  o.x.v.i.DefaultVelocityEngine  - Deprecated usage of method [com.xpn.xwiki.api.XWiki.parseMessage] in /templates/exceptioninline.vm@1,24 
++2012-03-17 02:31:24,773 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterUpdateOfAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] was defined in the codebase. 
++2012-03-17 02:31:24,773 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterUpdateOfAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:31:24,773 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterUpdateOfAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:Test.testRollbackAfterUpdateOfAttachment] which contains [2] classes. 
++2012-03-17 02:31:24,773 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterUpdateOfAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++2012-03-17 02:31:24,776 [http://127.0.0.1:8080/xwiki/bin/save/Test/testRollbackAfterUpdateOfAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] bytecode length [0]. 
++2012-03-17 02:31:24,840 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterUpdateOfAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] was defined in the codebase. 
++2012-03-17 02:31:24,840 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterUpdateOfAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:31:24,840 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterUpdateOfAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:Test.testRollbackAfterUpdateOfAttachment] which contains [2] classes. 
++2012-03-17 02:31:24,840 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterUpdateOfAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiAttachment] bytecode length [0]. 
++2012-03-17 02:31:24,844 [http://127.0.0.1:8080/xwiki/bin/upload/Test/testRollbackAfterUpdateOfAttachment?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++Test.testAttachmentContentDirty has no attachments right?
++
++
++
++
++
++2012-03-17 02:31:25,307 [http://127.0.0.1:8080/xwiki/bin/delete/Test/testAttachmentContentDirty?form_token=tEmvxtRNxSAw0q6pptji6w&confirm=1&basicauth=1] WARN  c.x.x.w.XWikiAction            - Uncaught exception: Error number 0 in 11: Uncaught exception
++Wrapped Exception: not implemented 
++com.xpn.xwiki.XWikiException: Error number 0 in 11: Uncaught exception
++Wrapped Exception: not implemented
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:254) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:116) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at org.apache.struts.action.RequestProcessor.processActionPerform(RequestProcessor.java:431) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.RequestProcessor.process(RequestProcessor.java:236) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.ActionServlet.process(ActionServlet.java:1196) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.ActionServlet.doPost(ActionServlet.java:432) [struts-1.2.9.jar:1.2.9]
++	at javax.servlet.http.HttpServlet.service(HttpServlet.java:727) [servlet-api-2.5.jar:2.5]
++	at javax.servlet.http.HttpServlet.service(HttpServlet.java:820) [servlet-api-2.5.jar:2.5]
++	at org.eclipse.jetty.servlet.ServletHolder.handle(ServletHolder.java:538) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1352) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at com.xpn.xwiki.web.ActionFilter.doFilter(ActionFilter.java:128) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.wysiwyg.server.filter.ConversionFilter.doFilter(ConversionFilter.java:144) [xwiki-platform-wysiwyg-server-3.4-SNAPSHOT.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at com.xpn.xwiki.plugin.webdav.XWikiDavFilter.doFilter(XWikiDavFilter.java:68) [xwiki-platform-webdav-server-3.4-20120214.180951-178.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.container.servlet.filters.internal.SavedRequestRestorerFilter.doFilter(SavedRequestRestorerFilter.java:217) [xwiki-platform-container-servlet-3.4-20120214.174014-217.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.container.servlet.filters.internal.SetCharacterEncodingFilter.doFilter(SetCharacterEncodingFilter.java:109) [xwiki-platform-container-servlet-3.4-20120214.174014-217.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler.doHandle(ServletHandler.java:476) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:119) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.security.SecurityHandler.handle(SecurityHandler.java:517) [jetty-security-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.session.SessionHandler.doHandle(SessionHandler.java:225) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandler.doHandle(ContextHandler.java:937) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler.doScope(ServletHandler.java:406) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.session.SessionHandler.doScope(SessionHandler.java:183) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandler.doScope(ContextHandler.java:871) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:117) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandlerCollection.handle(ContextHandlerCollection.java:247) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.HandlerCollection.handle(HandlerCollection.java:149) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.HandlerWrapper.handle(HandlerWrapper.java:110) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.Server.handle(Server.java:346) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection.handleRequest(HttpConnection.java:589) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection$RequestHandler.headerComplete(HttpConnection.java:1048) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.http.HttpParser.parseNext(HttpParser.java:601) [jetty-http-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.http.HttpParser.parseAvailable(HttpParser.java:214) [jetty-http-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection.handle(HttpConnection.java:411) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.io.nio.SelectChannelEndPoint.handle(SelectChannelEndPoint.java:535) [jetty-io-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.io.nio.SelectChannelEndPoint$1.run(SelectChannelEndPoint.java:40) [jetty-io-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.util.thread.QueuedThreadPool$3.run(QueuedThreadPool.java:529) [jetty-util-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at java.lang.Thread.run(Thread.java:662) [na:1.6.0_30]
++Caused by: java.lang.RuntimeException: not implemented
++	at com.xpn.xwiki.store.datanucleus.DataNucleusXWikiDocumentStore.deleteXWikiDoc(DataNucleusXWikiDocumentStore.java:133) ~[xwiki-platform-store-datanucleus-3.4-SNAPSHOT.jar:na]
++	at com.xpn.xwiki.store.datanucleus.DataNucleusStore.deleteXWikiDoc(DataNucleusStore.java:156) ~[xwiki-platform-store-datanucleus-3.4-SNAPSHOT.jar:na]
++	at com.xpn.xwiki.store.XWikiCacheStore.deleteXWikiDoc(XWikiCacheStore.java:304) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteDocument(XWiki.java:4277) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteDocument(XWiki.java:4260) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteAllDocuments(XWiki.java:6152) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteAllDocuments(XWiki.java:6141) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.DeleteAction.action(DeleteAction.java:93) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:230) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	... 41 common frames omitted
++2012-03-17 02:31:25,413 [http://127.0.0.1:8080/xwiki/bin/delete/Test/testAttachmentContentDirty?form_token=tEmvxtRNxSAw0q6pptji6w&confirm=1&basicauth=1] WARN  o.x.v.i.DefaultVelocityEngine  - Deprecated usage of method [com.xpn.xwiki.api.XWiki.parseMessage] in /templates/exceptioninline.vm@1,24 
++2012-03-17 02:31:25,438 [http://127.0.0.1:8080/xwiki/bin/save/Test/testAttachmentContentDirty?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:31:25,438 [http://127.0.0.1:8080/xwiki/bin/save/Test/testAttachmentContentDirty?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:Test.testAttachmentContentDirty] which contains [1] classes. 
++2012-03-17 02:31:25,438 [http://127.0.0.1:8080/xwiki/bin/save/Test/testAttachmentContentDirty?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++Test.testAttachmentContentDirty has no attachments right?
++
++
++
++
++
++
++
++
++
++
++
++
++DocumentTest.testRollback has no attachments right?
++
++
++
++
++
++2012-03-17 02:31:25,756 [http://127.0.0.1:8080/xwiki/bin/delete/DocumentTest/testRollback?form_token=tEmvxtRNxSAw0q6pptji6w&confirm=1&basicauth=1] WARN  c.x.x.w.XWikiAction            - Uncaught exception: Error number 0 in 11: Uncaught exception
++Wrapped Exception: not implemented 
++com.xpn.xwiki.XWikiException: Error number 0 in 11: Uncaught exception
++Wrapped Exception: not implemented
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:254) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:116) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at org.apache.struts.action.RequestProcessor.processActionPerform(RequestProcessor.java:431) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.RequestProcessor.process(RequestProcessor.java:236) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.ActionServlet.process(ActionServlet.java:1196) [struts-1.2.9.jar:1.2.9]
++	at org.apache.struts.action.ActionServlet.doPost(ActionServlet.java:432) [struts-1.2.9.jar:1.2.9]
++	at javax.servlet.http.HttpServlet.service(HttpServlet.java:727) [servlet-api-2.5.jar:2.5]
++	at javax.servlet.http.HttpServlet.service(HttpServlet.java:820) [servlet-api-2.5.jar:2.5]
++	at org.eclipse.jetty.servlet.ServletHolder.handle(ServletHolder.java:538) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1352) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at com.xpn.xwiki.web.ActionFilter.doFilter(ActionFilter.java:128) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.wysiwyg.server.filter.ConversionFilter.doFilter(ConversionFilter.java:144) [xwiki-platform-wysiwyg-server-3.4-SNAPSHOT.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at com.xpn.xwiki.plugin.webdav.XWikiDavFilter.doFilter(XWikiDavFilter.java:68) [xwiki-platform-webdav-server-3.4-20120214.180951-178.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.container.servlet.filters.internal.SavedRequestRestorerFilter.doFilter(SavedRequestRestorerFilter.java:217) [xwiki-platform-container-servlet-3.4-20120214.174014-217.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.xwiki.container.servlet.filters.internal.SetCharacterEncodingFilter.doFilter(SetCharacterEncodingFilter.java:109) [xwiki-platform-container-servlet-3.4-20120214.174014-217.jar:na]
++	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler.doHandle(ServletHandler.java:476) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:119) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.security.SecurityHandler.handle(SecurityHandler.java:517) [jetty-security-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.session.SessionHandler.doHandle(SessionHandler.java:225) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandler.doHandle(ContextHandler.java:937) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.servlet.ServletHandler.doScope(ServletHandler.java:406) [jetty-servlet-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.session.SessionHandler.doScope(SessionHandler.java:183) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandler.doScope(ContextHandler.java:871) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:117) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.ContextHandlerCollection.handle(ContextHandlerCollection.java:247) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.HandlerCollection.handle(HandlerCollection.java:149) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.handler.HandlerWrapper.handle(HandlerWrapper.java:110) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.Server.handle(Server.java:346) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection.handleRequest(HttpConnection.java:589) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection$RequestHandler.headerComplete(HttpConnection.java:1048) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.http.HttpParser.parseNext(HttpParser.java:601) [jetty-http-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.http.HttpParser.parseAvailable(HttpParser.java:214) [jetty-http-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.server.HttpConnection.handle(HttpConnection.java:411) [jetty-server-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.io.nio.SelectChannelEndPoint.handle(SelectChannelEndPoint.java:535) [jetty-io-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.io.nio.SelectChannelEndPoint$1.run(SelectChannelEndPoint.java:40) [jetty-io-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at org.eclipse.jetty.util.thread.QueuedThreadPool$3.run(QueuedThreadPool.java:529) [jetty-util-7.4.5.v20110725.jar:7.4.5.v20110725]
++	at java.lang.Thread.run(Thread.java:662) [na:1.6.0_30]
++Caused by: java.lang.RuntimeException: not implemented
++	at com.xpn.xwiki.store.datanucleus.DataNucleusXWikiDocumentStore.deleteXWikiDoc(DataNucleusXWikiDocumentStore.java:133) ~[xwiki-platform-store-datanucleus-3.4-SNAPSHOT.jar:na]
++	at com.xpn.xwiki.store.datanucleus.DataNucleusStore.deleteXWikiDoc(DataNucleusStore.java:156) ~[xwiki-platform-store-datanucleus-3.4-SNAPSHOT.jar:na]
++	at com.xpn.xwiki.store.XWikiCacheStore.deleteXWikiDoc(XWikiCacheStore.java:304) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteDocument(XWiki.java:4277) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteDocument(XWiki.java:4260) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteAllDocuments(XWiki.java:6152) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.XWiki.deleteAllDocuments(XWiki.java:6141) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.DeleteAction.action(DeleteAction.java:93) ~[xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	at com.xpn.xwiki.web.XWikiAction.execute(XWikiAction.java:230) [xwiki-platform-legacy-oldcore-3.4-20120214.180041-186.jar:na]
++	... 41 common frames omitted
++2012-03-17 02:31:25,877 [http://127.0.0.1:8080/xwiki/bin/delete/DocumentTest/testRollback?form_token=tEmvxtRNxSAw0q6pptji6w&confirm=1&basicauth=1] WARN  o.x.v.i.DefaultVelocityEngine  - Deprecated usage of method [com.xpn.xwiki.api.XWiki.parseMessage] in /templates/exceptioninline.vm@1,24 
++2012-03-17 02:31:25,897 [http://127.0.0.1:8080/xwiki/bin/save/DocumentTest/testRollback?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:31:25,897 [http://127.0.0.1:8080/xwiki/bin/save/DocumentTest/testRollback?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:DocumentTest.testRollback] which contains [1] classes. 
++2012-03-17 02:31:25,897 [http://127.0.0.1:8080/xwiki/bin/save/DocumentTest/testRollback?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++DocumentTest.testRollback has no attachments right?
++
++
++
++
++
++2012-03-17 02:31:25,946 [http://127.0.0.1:8080/xwiki/bin/save/DocumentTest/testRollback?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:31:25,946 [http://127.0.0.1:8080/xwiki/bin/save/DocumentTest/testRollback?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:DocumentTest.testRollback] which contains [1] classes. 
++2012-03-17 02:31:25,947 [http://127.0.0.1:8080/xwiki/bin/save/DocumentTest/testRollback?form_token=tEmvxtRNxSAw0q6pptji6w&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++DocumentTest.testRollback has no attachments right?
++
++
++
++
++
++2012-03-17 02:31:26,058 [http://127.0.0.1:8080/xwiki/bin/rollback/DocumentTest/testRollback?form_token=tEmvxtRNxSAw0q6pptji6w&rev=1.1&confirm=1&basicauth=1] ERROR o.x.s.o.PersistableObject      - The PersistableClass [class com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] was defined in the codebase. 
++2012-03-17 02:31:26,058 [http://127.0.0.1:8080/xwiki/bin/rollback/DocumentTest/testRollback?form_token=tEmvxtRNxSAw0q6pptji6w&rev=1.1&confirm=1&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing object [xwiki:DocumentTest.testRollback] which contains [1] classes. 
++2012-03-17 02:31:26,059 [http://127.0.0.1:8080/xwiki/bin/rollback/DocumentTest/testRollback?form_token=tEmvxtRNxSAw0q6pptji6w&rev=1.1&confirm=1&basicauth=1] ERROR aNucleusPersistableObjectStore - Storing class [com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument] bytecode length [0]. 
++
++
++
++
++
++
++
++DocumentTest.testRollback has no attachments right?
++
++
++
++
++
++The command attribute is deprecated.
++Please use the executable attribute and nested arg elements.
++Current OS is Linux
++Executing 'sh' with arguments:
++'-f'
++'stop_xwiki.sh'
++'8079'
++
++The ' characters around the executable and arguments are
++not part of the command.
++2012-03-17 02:31:26.325:INFO::Graceful shutdown SelectChannelConnector@0.0.0.0:8080 STARTED
++2012-03-17 02:31:26.325:INFO::Graceful shutdown o.e.j.w.WebAppContext{/xwiki,file:/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/webapps/xwiki/},/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/../webapps/xwiki
++2012-03-17 02:31:26.325:INFO::Graceful shutdown o.e.j.w.WebAppContext{/,file:/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/webapps/root/},/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/../webapps/root
++2012-03-17 02:31:27.354:INFO::stopped o.e.j.w.WebAppContext{/,file:/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/webapps/root/},/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/../webapps/root
++2012-03-17 02:31:27.371:INFO::stopped o.e.j.w.WebAppContext{/xwiki,file:/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/webapps/xwiki/},/home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/xwiki-enterprise-jetty-datanucleus-3.4-SNAPSHOT/jetty/../webapps/xwiki
++XWiki server stopped
++Tests run: 16, Failures: 14, Errors: 0, Skipped: 2, Time elapsed: 105.778 sec <<< FAILURE!
++
++Results :
++
++Failed tests:   testDocumentAddAttachment(org.xwiki.test.storage.AttachmentTest): expected:<<[p>This is content for a very small attachment.</p]>> but was:<<[div class="xwikirenderingerror">Failed to execute the [groovy] macro</div><div class="xwikirenderingerrordescription hidden"><pre>org.xwiki.rendering.macro.MacroExecutionException: You don't have the right to execute this script
++  testImportDocumentWithAttachment(org.xwiki.test.storage.AttachmentTest): expected:<[This is content for a very small attachment.]> but was:<[<?xml version="1.0" encoding="UTF-8" ?>
++  testRollbackAfterDeleteAttachment(org.xwiki.test.storage.AttachmentTest): expected:<[This is content for a very small attachment.]> but was:<[<?xml version="1.0" encoding="UTF-8" ?>
++  testRollbackAfterNewAttachment(org.xwiki.test.storage.AttachmentTest): expected:<[This is content for a very small attachment.]> but was:<[<?xml version="1.0" encoding="UTF-8" ?>
++  testRollbackAfterUpdateOfAttachment(org.xwiki.test.storage.AttachmentTest): expected:<[This is content for a very small attachment.]> but was:<[<?xml version="1.0" encoding="UTF-8" ?>
++  testAttachmentContentDirty(org.xwiki.test.storage.AttachmentTest): expected:<<[p>true false</p]>> but was:<<[div class="xwikirenderingerror">Failed to execute the [groovy] macro</div><div class="xwikirenderingerrordescription hidden"><pre>org.xwiki.rendering.macro.MacroExecutionException: You don't have the right to execute this script
++  testRollback(org.xwiki.test.storage.DocumentTest): expected:<<p>This is version [one]</p>> but was:<<p>This is version [two]</p>>
++  testDocumentAddAttachment(org.xwiki.test.storage.AttachmentTest): expected:<<[p>This is content for a very small attachment.</p]>> but was:<<[div class="xwikirenderingerror">Failed to execute the [groovy] macro</div><div class="xwikirenderingerrordescription hidden"><pre>org.xwiki.rendering.macro.MacroExecutionException: You don't have the right to execute this script
++  testImportDocumentWithAttachment(org.xwiki.test.storage.AttachmentTest): expected:<[This is content for a very small attachment.]> but was:<[<?xml version="1.0" encoding="UTF-8" ?>
++  testRollbackAfterDeleteAttachment(org.xwiki.test.storage.AttachmentTest): expected:<[This is content for a very small attachment.]> but was:<[<?xml version="1.0" encoding="UTF-8" ?>
++  testRollbackAfterNewAttachment(org.xwiki.test.storage.AttachmentTest): expected:<[This is content for a very small attachment.]> but was:<[<?xml version="1.0" encoding="UTF-8" ?>
++  testRollbackAfterUpdateOfAttachment(org.xwiki.test.storage.AttachmentTest): expected:<[This is content for a very small attachment.]> but was:<[<?xml version="1.0" encoding="UTF-8" ?>
++  testAttachmentContentDirty(org.xwiki.test.storage.AttachmentTest): expected:<<[p>true false</p]>> but was:<<[div class="xwikirenderingerror">Failed to execute the [groovy] macro</div><div class="xwikirenderingerrordescription hidden"><pre>org.xwiki.rendering.macro.MacroExecutionException: You don't have the right to execute this script
++  testRollback(org.xwiki.test.storage.DocumentTest): expected:<<p>This is version [one]</p>> but was:<<p>This is version [two]</p>>
++
++Tests run: 16, Failures: 14, Errors: 0, Skipped: 2
++
++[INFO] ------------------------------------------------------------------------
++[INFO] BUILD FAILURE
++[INFO] ------------------------------------------------------------------------
++[INFO] Total time: 1:59.689s
++[INFO] Finished at: Sat Mar 17 02:31:27 EDT 2012
++[INFO] Final Memory: 24M/1962M
++[INFO] ------------------------------------------------------------------------
++[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.10:test (default) on project xwiki-enterprise-test-storage: There are test failures.
++[ERROR] 
++[ERROR] Please refer to /home/user/wrk/xdn/xwiki-enterprise/xwiki-enterprise-test/xwiki-enterprise-test-storage/target/surefire-reports for the individual test results.
++[ERROR] -> [Help 1]
++[ERROR] 
++[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
++[ERROR] Re-run Maven using the -X switch to enable full debug logging.
++[ERROR] 
++[ERROR] For more information about the errors and possible solutions, please read the following articles:
++[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+diff --git a/xwiki-enterprise-test/xwiki-enterprise-test-storage/pom.xml b/xwiki-enterprise-test/xwiki-enterprise-test-storage/pom.xml
+index e43cffc..0639462 100644
+--- a/xwiki-enterprise-test/xwiki-enterprise-test-storage/pom.xml
++++ b/xwiki-enterprise-test/xwiki-enterprise-test-storage/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-test</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-test-storage</artifactId>
+   <name>XWiki Enterprise - Functional Tests - Storage</name>
+diff --git a/xwiki-enterprise-test/xwiki-enterprise-test-ui/pom.xml b/xwiki-enterprise-test/xwiki-enterprise-test-ui/pom.xml
+index 8198632..787d1c7 100644
+--- a/xwiki-enterprise-test/xwiki-enterprise-test-ui/pom.xml
++++ b/xwiki-enterprise-test/xwiki-enterprise-test-ui/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-test</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-test-ui</artifactId>
+   <name>XWiki Enterprise - Functional Tests - UI</name>
+diff --git a/xwiki-enterprise-test/xwiki-enterprise-test-webdav/pom.xml b/xwiki-enterprise-test/xwiki-enterprise-test-webdav/pom.xml
+index 212a5f4..a14f675 100644
+--- a/xwiki-enterprise-test/xwiki-enterprise-test-webdav/pom.xml
++++ b/xwiki-enterprise-test/xwiki-enterprise-test-webdav/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-test</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-test-webdav</artifactId>
+   <name>XWiki Enterprise - Functional Tests - WebDAV</name>
+diff --git a/xwiki-enterprise-test/xwiki-enterprise-test-webstandards/pom.xml b/xwiki-enterprise-test/xwiki-enterprise-test-webstandards/pom.xml
+index 7225f33..52243d9 100644
+--- a/xwiki-enterprise-test/xwiki-enterprise-test-webstandards/pom.xml
++++ b/xwiki-enterprise-test/xwiki-enterprise-test-webstandards/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-test</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-test-webstandards</artifactId>
+   <name>XWiki Enterprise - Functional Tests - Web Standards</name>
+diff --git a/xwiki-enterprise-test/xwiki-enterprise-test-wysiwyg/pom.xml b/xwiki-enterprise-test/xwiki-enterprise-test-wysiwyg/pom.xml
+index b17aadf..22dbee6 100644
+--- a/xwiki-enterprise-test/xwiki-enterprise-test-wysiwyg/pom.xml
++++ b/xwiki-enterprise-test/xwiki-enterprise-test-wysiwyg/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-test</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-test-wysiwyg</artifactId>
+   <name>XWiki Enterprise - Functional Tests - WYSIWYG</name>
+diff --git a/xwiki-enterprise-test/xwiki-enterprise-test-xmlrpc/pom.xml b/xwiki-enterprise-test/xwiki-enterprise-test-xmlrpc/pom.xml
+index c3df0ef..89f5e9d 100644
+--- a/xwiki-enterprise-test/xwiki-enterprise-test-xmlrpc/pom.xml
++++ b/xwiki-enterprise-test/xwiki-enterprise-test-xmlrpc/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise-test</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-test-xmlrpc</artifactId>
+   <name>XWiki Enterprise - Functional Tests - XMLRPC</name>
+diff --git a/xwiki-enterprise-ui/pom.xml b/xwiki-enterprise-ui/pom.xml
+index 4039d31..56c5def 100644
+--- a/xwiki-enterprise-ui/pom.xml
++++ b/xwiki-enterprise-ui/pom.xml
+@@ -3,7 +3,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-ui</artifactId>
+   <name>XWiki Enterprise - UI</name>
+diff --git a/xwiki-enterprise-web/pom.xml b/xwiki-enterprise-web/pom.xml
+index df5d91d..4e1c1ec 100644
+--- a/xwiki-enterprise-web/pom.xml
++++ b/xwiki-enterprise-web/pom.xml
+@@ -27,7 +27,7 @@
+   <parent>
+     <groupId>org.xwiki.enterprise</groupId>
+     <artifactId>xwiki-enterprise</artifactId>
+-    <version>4.2-milestone-1</version>
++    <version>4.2-SNAPSHOT</version>
+   </parent>
+   <artifactId>xwiki-enterprise-web</artifactId>
+   <name>XWiki Enterprise - Web</name>
+@@ -469,6 +469,8 @@
+       <version>${platform.version}</version>
+       <scope>runtime</scope>
+     </dependency>
++
++
+     <!-- Filesystem attachment storage -->
+     <dependency>
+       <groupId>org.xwiki.platform</groupId>
+@@ -476,6 +478,19 @@
+       <version>${platform.version}</version>
+       <scope>runtime</scope>
+     </dependency>
++    <dependency>
++      <groupId>org.xwiki.platform</groupId>
++      <artifactId>xwiki-platform-store-datanucleus-documents</artifactId>
++      <version>${platform.version}</version>
++      <scope>runtime</scope>
++    </dependency>
++    <dependency>
++      <groupId>com.google.guava</groupId>
++      <artifactId>guava</artifactId>
++      <version>10.0</version>
++    </dependency>
++
++
+     <!-- Activity Stream -->
+     <dependency>
+       <groupId>org.xwiki.platform</groupId>

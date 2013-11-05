@@ -1,0 +1,180 @@
+##set($lightGray = "#CCC")
+#set($veryLightGray = "#FBFBFB")
+#set($darkGray = "#333")
+#set($commonHeadingStyle = "margin:0;")
+#set($h1Style = "$commonHeadingStyle")
+#set($h2Style = "$commonHeadingStyle")
+#set($h3Style = "$commonHeadingStyle")
+#set($h4Style = "$commonHeadingStyle;margin-top:2px;margin-bottom:2px;")
+#set($h3BaselineStyle = "font-size:0.8em;color:${darkGray};padding-left:21px;")
+#set($commonDivStyle = "")
+#set($wikiDivStyle = "$commonDivStyle margin-top:16px;")
+#set($spaceDivStyle = "$commonDivStyle margin-left:8px;padding:10px;border-left:solid 1px ${lightGray};")
+#set($documentDivStyle = "$commonDivStyle margin-left:8px;padding:10px;border-left:solid 1px ${lightGray};")
+#set($iconStyle = "width:16px;height:16px;margin-right:4px")
+#set($iconAttrs = 'align="absmiddle"')
+#set($eventStyle = "padding-left:21px;")
+#set($diffStyle = "padding:5px;margin:5px;background-color:$veryLightGray;border-left:solid 4px $lightGray;")
+#set($propDiffStyle = "margin-right:2px;padding:2px;")
+#set($containerStyle = "font-family: Arial, Verdana;font-size:95%")
+#set($rightColumnStyle = "float:right;border:solid 1px ${darkGray};background:white;margin-left:2em;margin-bottom:2em;padding:1em;")
+#set($rightColumnUlStyle = "margin-left:1em;padding-left:0;")
+#set($rightColumnAStyle = "color:$darkGray;")
+#set($rightColumnTitleStyle = "margin:0;")
+
+#macro(displayhtmldiff $html)
+  #set($result = $html.replaceAll('\<div class="diff"\>\</div\>', "").trim())
+  #set($result = $result.replaceAll('class="diffaddword"', 'style="font-weight:bold;background-color:#99FF99;"'))
+  #set($result = $result.replaceAll('class="diffremoveword"', 'style="text-decoration: line-through;background-color:#FF9999;"'))
+  #set($prefix = "WATCHLIST_STYLE_DIFF_")
+  #set($result = $result.replaceAll("${prefix}contentDiff", "$diffStyle"))
+  #set($result = $result.replaceAll("${prefix}attachmentDiff", "$diffStyle"))
+  #set($result = $result.replaceAll("${prefix}objectDiff", "$diffStyle"))
+  #set($result = $result.replaceAll("${prefix}classDiff", "$diffStyle"))
+  #set($result = $result.replaceAll("${prefix}objectClassName", "text-decoration:underline; margin-bottom:0.5em;"))
+  #set($result = $result.replaceAll("${prefix}classClassName", "text-decoration:underline; margin-bottom:0.5em;"))
+  #set($result = $result.replaceAll("${prefix}propDiffOldValue", "$propDiffStyle background:#FFEDED;"))
+  #set($result = $result.replaceAll("${prefix}propDiffNewValue", "$propDiffStyle background:#EDFFED;"))
+  #set($result = $result.replaceAll("${prefix}propDiff", "$propDiffStyle"))
+  #set($suffix = "_WATCHLIST_IMG_PLACEHOLDER")
+  ## We have to rely on a trick to escape nested quotes because "" (doubling the quotes) syntax is supported only since
+  ## velocity 1.7 and escapetool is not present in the velocity context when the notification message is parsed (a
+  ## custom velocity context is used).
+  #set($q = '"')
+  #foreach($totransform in ["attach", "object", "class", "metadata"])
+    #set($result = $result.replaceAll("${totransform}${suffix}", "<img src=${q}cid:${totransform}.gif${q} style=${q}${iconStyle}${q} ${iconAttrs}></img>"))
+  #end
+  #foreach($totransform in ["boolean", "date", "dblist", "dbtreelist", "groups", "levels", "number", "password", "staticlist", "string", "textarea", "users"])
+    #set($result = $result.replaceAll("${totransform}${suffix}", "<img src=${q}cid:${totransform}.png${q} style=${q}${iconStyle}${q} ${iconAttrs}></img>"))
+  #end
+  $result
+#end
+
+<div style="$containerStyle">
+<div style="$rightColumnStyle">
+<h2 style="$rightColumnTitleStyle">$msg.get("watchlist.notification.email.contents")<a name="nav"><span>&nbsp;</span></a></h2>
+#set($firstEntry = true)
+#set($previousEvent = "")
+#set($previousDoc = "")
+<ul style="$rightColumnUlStyle">
+#foreach ($event in $events)
+  #set($prefixedFullName = $event.getPrefixedFullName())
+  #set($newWiki = ($event.getWiki() != $previousEvent.getWiki()))
+  #if ($newWiki)
+    #if (!$firstEntry) </ul></li></ul></li> #else #set($firstEntry = false) #end
+    #set($previousEvent = "")
+    #set($wikiName = "$!xwiki.wikimanager.getWikiDocument($event.getWiki()).getWikiPrettyName()")
+    #if($wikiName == "")
+      #set($wikiName = $event.getWiki())
+    #end
+    <li><a href="#$event.getWiki()" style="$rightColumnAStyle">$wikiName</a>
+    <ul style="$rightColumnUlStyle">
+  #end
+  #set($newSpace = ($event.getSpace() != $previousEvent.getSpace()))
+  #if ($newSpace)
+    #if (!$firstEntry && !$newWiki) </ul></li> #end
+    #set($previousEvent = "")
+    <li><a href="#${event.getWiki()}:$event.getSpace()" style="$rightColumnAStyle">$event.getSpace()</a>
+    <ul style="$rightColumnUlStyle">
+  #end
+  #set($newDocument = $prefixedFullName != $previousDoc.getPrefixedFullName())
+  #if($newDocument)
+    #set($currentDoc = $xwiki.getDocument($prefixedFullName))
+    <li><a href="#$prefixedFullName" style="$rightColumnAStyle">$currentDoc.getDisplayTitle()</a></li>
+  #end
+  #set($previousEvent = $event)
+  #set($previousDoc = $currentDoc)
+#end
+</ul></li></ul></li>
+</ul>
+</div>
+
+$msg.get("watchlist.notification.email.greeting", [$first_name])<br><br>
+
+#if($modifiedDocuments.size() == 1)
+$msg.get("watchlist.notification.email.singleUpdate.intro")
+#else
+$msg.get("watchlist.notification.email.multipleUpdates.intro")
+#end
+
+#set($firstEntry = true)
+#set($previousEvent = "")
+#set($previousDoc = "")
+#foreach ($event in $events)
+  #set($prefixedFullName = $event.getPrefixedFullName())
+  #set($newWiki = ($event.getWiki() != $previousEvent.getWiki()))  
+  #if ($newWiki)
+    #if (!$firstEntry) </div></div></div> #else #set($firstEntry = false) #end
+    #set($previousEvent = "")
+    #set($wikiName = "$!xwiki.wikimanager.getWikiDocument($event.getWiki()).getWikiPrettyName()")
+    #if($wikiName == "")
+      #set($wikiName = $event.getWiki())
+    #end
+    <div class="wiki" style="$wikiDivStyle">
+    <h1 style="$h1Style"><img src="cid:wiki.gif" style="$iconStyle" ${iconAttrs} /><a name="$event.getWiki()"><span>&nbsp;</span></a>$wikiName</h1>
+  #end
+  #set($newSpace = ($event.getSpace() != $previousEvent.getSpace()))
+  #if ($newSpace)
+    #if (!$firstEntry && !$newWiki) </div></div> #end
+    #set($previousEvent = "")
+    <div class="space" style="$spaceDivStyle">
+    <h2 style="$h2Style"><img src="cid:space.gif" style="$iconStyle" ${iconAttrs} /><a name="${event.getWiki()}:$event.getSpace()"><span>&nbsp;</span></a>$event.getSpace()</h2>
+  #end
+  #set($newDocument = $prefixedFullName != $previousDoc.getPrefixedFullName())
+  #if($newDocument)
+    #if (!$firstEntry && !$newWiki && !$newSpace) </div> #end
+    <div class="document" style="$documentDivStyle">
+    #set($currentDoc = $xwiki.getDocument($prefixedFullName))
+    <h3 style="$h3Style"><img src="cid:document.gif" style="$iconStyle" ${iconAttrs} /><a name="$prefixedFullName" href="$event.getUrl()"><span>$currentDoc.getDisplayTitle()</span></a> <a href="#nav" style="text-decoration:none;padding-top:8px;"><img src="cid:arrowup.gif" style="border:0;" width="16px" height="16px"/></a></h3>
+    <span style="$h3BaselineStyle">$event.getFullName()</span><br/><br/>
+  #end
+  <div style="$eventStyle">
+    #if(!$event.isComposite())
+      <h4 style="$h4Style">$msg.get("watchlist.event.${event.getType()}", [$xwiki.formatDate($event.getDate()), $xwiki.getLocalUserName($event.getAuthor(), false)])</h4>
+    #else
+      #set($authors = "")
+      #foreach($author in $event.getAuthors())
+        #set($authors = "${authors}${xwiki.getLocalUserName($author, false)}")
+        #if($event.getAuthors().indexOf($author) < $event.getAuthors().size() - 1)
+          #set($authors = "${authors}, ")  
+        #end
+      #end
+      #set($firstDateIndex = $event.getDates().size() - 1)
+      #set($firstDate = $xwiki.formatDate($event.getDates().get($firstDateIndex)))
+      <h4 style="$h4Style">$msg.get("watchlist.event.update.multiple", [$firstDate, $xwiki.formatDate($event.getDate()), $event.getVersions().size(), $event.getAuthors().size(), $authors])</h4>
+    #end
+    #if ($event.getType() == "update" || $event.getType() == "create")
+      <div class="diff">
+        #displayhtmldiff($event.getHTMLDiff())
+      </div>
+    #end
+  </div>
+  #set($previousEvent = $event)
+  #set($previousDoc = $currentDoc)
+#end
+</div></div></div>
+</div>
+<!--
+We want to be able to use attached images in the HTML part of the email but we don't want them to be listed as attachments. We use a little trick here to make the mailsender plugin consider that we use all the attached images in this mail even if we don't (some images are used very rarely).
+
+src='cid:groups.png'
+src='cid:metadata.gif'
+src='cid:dblist.png'
+src='cid:attach.gif'
+src='cid:date.png'
+src='cid:boolean.png'
+src='cid:textarea.png'
+src='cid:string.png'
+src='cid:space.gif'
+src='cid:document.gif'
+src='cid:dbtreelist.png'
+src='cid:wiki.gif'
+src='cid:number.png'
+src='cid:class.gif'
+src='cid:users.png'
+src='cid:staticlist.png'
+src='cid:levels.png'
+src='cid:password.png'
+src='cid:object.gif'
+src='cid:arrowup.gif'
+-->       ^                  €   €           'xwiki:XWiki.WatchListMessage.objects[0]   9Ln‹}    
