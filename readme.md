@@ -1,6 +1,6 @@
 # XWiki/Cassandra distributed wiki demo
 
-[![XWiki labs logo](https://raw.githubusercontent.com/xwiki-labs/xwiki-labs-logo/master/projects/xwikilabs/xlabs-project.png "XWiki labs")](https://labs.xwiki.com/xwiki/bin/view/Main/WebHome)
+[![XWiki labs logo](https://raw.githubusercontent.com/xwiki-labs/xwiki-labs-logo/master/projects/xwikilabs/xwikilabsprototype.png "XWiki labs")](https://labs.xwiki.com/xwiki/bin/view/Projects/XWikiLabsPrototype)
 
 This demo shows XWiki running as a cluster over a Cassandra cluster to form
 a fully distributed and fault tollerant storage and wiki system.
